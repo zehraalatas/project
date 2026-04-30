@@ -160,16 +160,13 @@ class PatronDashboard:
         def confirm():
             raw = percent_entry.get().strip()
 
-            # Sadece sayı ve nokta kabul et
-            if not raw.replace(".", "", 1).isdigit():
-                status_lbl.configure(text="⚠️ Lütfen geçerli bir sayı girin!", text_color="#e74c3c")
+            if not self.app.validation_service.is_numeric(raw) or \
+                    not self.app.validation_service.is_valid_percent(raw):
+                status_lbl.configure(text="⚠️ Geçerli bir oran girin (1-100)!", text_color="#e74c3c")
                 return
 
             percent = float(raw)
-
-            if percent <= 0 or percent > 100:
-                status_lbl.configure(text="⚠️ Oran 0 ile 100 arasında olmalı!", text_color="#e74c3c")
-                return
+            self._pending_percent = percent  # SalaryService için sakla
 
             old_sal, new_sal = self.app.hr_service.final_approve_raise(req_id, percent)
 
@@ -177,8 +174,8 @@ class PatronDashboard:
                 text=f"✅ {old_sal:,.0f} ₺ → {new_sal:,.0f} ₺",
                 text_color="#2ecc71"
             )
-            self.load_salary_management()  # Maaş sekmesini anında güncelle
-            self.load_manager_approvals()  # Listeyi temizle
+            self.load_salary_management()
+            self.load_manager_approvals()
             win.after(1800, win.destroy)
 
         ctk.CTkButton(win, text="Onayla ve Uygula", command=confirm,
@@ -186,7 +183,6 @@ class PatronDashboard:
                       font=("Helvetica", 13, "bold")).pack(pady=10)
 
     def update_day(self, p_id, new_day):
-        # Kişinin rolünü al
         self.app.db_manager.cursor.execute("SELECT role FROM users WHERE id=?", (p_id,))
         result = self.app.db_manager.cursor.fetchone()
 
@@ -195,11 +191,16 @@ class PatronDashboard:
 
         role = result[0]
 
-        # Çakışma kontrolü
+        # Müdür ve Patron için kontrol yapma, direkt güncelle
+        if role in ('Patron', 'Müdür'):
+            self.app.hr_service.set_off_day_by_id(p_id, new_day)
+            self.load_staff_management()
+            return
+
+        # Diğer roller için çakışma kontrolü
         ok, msg = self.app.hr_service.check_off_day_conflict(p_id, role, new_day)
 
         if not ok:
-            # Uyarı popup'ı
             win = ctk.CTkToplevel(self.app)
             win.title("Uyarı")
             win.geometry("320x160")
@@ -222,10 +223,30 @@ class PatronDashboard:
 
     def change_salary(self, p_id, current_salary, amount):
         new_salary = current_salary + amount
-        self.app.db_manager.cursor.execute("UPDATE users SET salary=? WHERE id=?", (new_salary, p_id))
-        self.app.db_manager.conn.commit()
+        self.app.salary_service.db.cursor.execute(
+            "UPDATE users SET salary=? WHERE id=?", (new_salary, p_id)
+        )
+        self.app.salary_service.db.conn.commit()
         self.load_salary_management()
 
     def final_approve_raise(self, req_id):
+        self.app.hr_service.db.cursor.execute(
+            "SELECT sender_name FROM requests WHERE id=?", (req_id,)
+        )
+        sender = self.app.hr_service.db.cursor.fetchone()[0]
+
+        self.app.hr_service.db.cursor.execute(
+            "SELECT id FROM users WHERE username=?", (sender,)
+        )
+        result = self.app.hr_service.db.cursor.fetchone()
+
+        if result:
+            user_id = result[0]
+            # Artık SalaryService kullanıyor — otomatik kayıt tutuyor
+            record = self.app.salary_service.apply_raise(user_id, self._pending_percent)
+            if record:
+                print(f"Zam kaydedildi: {record}")
+
         self.app.hr_service.update_request_status(req_id, "Kesin Onaylandı")
         self.load_manager_approvals()
+        self.load_salary_management()

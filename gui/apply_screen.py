@@ -14,7 +14,7 @@ class ApplyScreen:
         self.name_entry = ctk.CTkEntry(self.frame, placeholder_text="Adınız Soyadınız", width=250, height=40)
         self.name_entry.place(relx=0.5, rely=0.35, anchor=ctk.CENTER)
 
-        self.role_combo = ctk.CTkComboBox(self.frame, values=["Garson", "Aşçı", "Kasiyer"], width=250, height=40)
+        self.role_combo = ctk.CTkComboBox(self.frame, values=["Garson", "Aşçı", "Kasiyer","Temizlikçi","Barista"], width=250, height=40)
         self.role_combo.place(relx=0.5, rely=0.5, anchor=ctk.CENTER)
 
         self.apply_btn = ctk.CTkButton(self.frame, text="Başvuruyu Gönder", command=self.submit, width=250, height=40)

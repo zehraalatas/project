@@ -1,19 +1,26 @@
 from database.db_manager import DatabaseManager
 from services.auth_service import AuthService
 from services.hr_service import HRService
+from services.validation_service import ValidationService
+from services.notification_service import NotificationService
+from services.report_service import ReportService
+from services.salary_service import SalaryService
 from gui.app_gui import AppGUI
 
 
 def main():
-    # 1. Veritabanını Başlat
     db = DatabaseManager()
 
-    # 2. Servisleri Başlat
     auth = AuthService(db)
     hr = HRService(db)
+    validation = ValidationService()
+    notification = NotificationService(db)
+    report = ReportService(db)
+    salary = SalaryService(db)
 
-    # 3. GUI'yi Başlat ve Sistemi İçine Enjekte Et (Dependency Injection)
-    app = AppGUI(db_manager=db, auth_service=auth, hr_service=hr)
+    app = AppGUI(db_manager=db, auth_service=auth, hr_service=hr,
+                 validation_service=validation, notification_service=notification,
+                 report_service=report, salary_service=salary)
     app.mainloop()
 
 
