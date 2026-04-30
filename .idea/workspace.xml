@@ -5,27 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="d4d7db15-82ef-4b19-a8ec-6ac1ead54eff" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/models/employee.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/models/leave_request.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/models/manager.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/models/notification.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/models/patron.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/models/raise_request.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/models/salary_record.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/models/schedule.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/models/shift.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/models/work_day.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/services/notification_service.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/services/report_service.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/services/salary_service.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/services/validation_service.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cafe_system.db" beforeDir="false" afterPath="$PROJECT_DIR$/cafe_system.db" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/gui/app_gui.py" beforeDir="false" afterPath="$PROJECT_DIR$/gui/app_gui.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/gui/apply_screen.py" beforeDir="false" afterPath="$PROJECT_DIR$/gui/apply_screen.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/gui/patron_dashboard.py" beforeDir="false" afterPath="$PROJECT_DIR$/gui/patron_dashboard.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/auth_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/auth_service.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -131,7 +111,7 @@
       <workItem from="1777452283141" duration="6429000" />
       <workItem from="1777530912868" duration="428000" />
       <workItem from="1777538486150" duration="638000" />
-      <workItem from="1777550702828" duration="4975000" />
+      <workItem from="1777550702828" duration="5122000" />
     </task>
     <servers />
   </component>
