@@ -1,25 +1,14 @@
-class WorkDay:
-    def __init__(self, day_name, is_off=False):
-        self.day_name = day_name
-        self.is_off = is_off
-        self.shift_done = False
+from models.user import User
 
-    def mark_shift_done(self):
-        self.shift_done = True
+class Employee(User):
+    def __init__(self, user_id, username, role, salary, manager_id=None, off_day="Pazartesi"):
+        super().__init__(user_id, username, role, salary, manager_id, off_day)
 
-    def get_status_text(self):
-        if self.is_off:
-            return "OFF"
-        if self.shift_done:
-            return "Bitti ✔"
-        return "09:00\n17:00"
+    def can_request_leave(self, role_count):
+        return role_count > 1
 
-    def get_color(self):
-        if self.is_off:
-            return "#e74c3c"
-        if self.shift_done:
-            return "#27ae60"
-        return "#2980b9"
+    def get_display_name(self):
+        return f"{self.role} {self.username.capitalize()}"
 
     def __repr__(self):
-        return f"WorkDay({self.day_name}, off={self.is_off})"
+        return f"Employee({self.username}, {self.role}, {self.salary}₺)"

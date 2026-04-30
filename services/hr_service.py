@@ -1,3 +1,4 @@
+from models.shift import Shift
 class HRService:
     def __init__(self, db_manager):
         self.db = db_manager
@@ -43,15 +44,18 @@ class HRService:
         return self.db.cursor.fetchall()
 
     def update_request_status(self, req_id, status):
-        self.db.cursor.execute("SELECT request_type FROM requests WHERE id=?", (req_id,))
-        req_type = self.db.cursor.fetchone()[0]
+        self.db.cursor.execute("SELECT request_type, sender_name FROM requests WHERE id=?", (req_id,))
+        row = self.db.cursor.fetchone()
+        req_type, sender = row
 
         final_status = status
         if req_type == "Zam" and status == "Onaylandı":
-            final_status = "Müdür Onayladı"  # Zamsa patrona ilet
+            final_status = "Müdür Onayladı"
 
         self.db.cursor.execute("UPDATE requests SET status=? WHERE id=?", (final_status, req_id))
         self.db.conn.commit()
+
+        return sender, req_type, final_status  # UI için döndür
 
     # YENİ: Takvim ve İşten Çıkarma Fonksiyonları
     def set_off_day_by_username(self, username, off_day):
@@ -134,3 +138,35 @@ class HRService:
                 return day
 
         return None  # Tüm günler dolu
+
+    def save_shift_record(self, user_id, username):
+        import datetime
+        today = datetime.date.today().isoformat()
+
+        # shifts tablosuna yeni bir satır ekliyoruz
+        self.db.cursor.execute(
+            "INSERT INTO shifts (user_id, username, date, hours) VALUES (?, ?, ?, ?)",
+            (user_id, username, today, 8)  # Standart 8 saatlik çalışma
+        )
+        self.db.conn.commit()
+
+    # services/hr_service.py içine ekle:
+    def log_status(self, user_id, username, status):
+        import datetime
+        today = datetime.date.today().isoformat()
+
+        # Bugün için zaten kayıt var mı kontrol et (Mükerrer kayıt olmasın)
+        self.db.cursor.execute("SELECT id FROM shifts WHERE user_id=? AND date=?", (user_id, today))
+        if not self.db.cursor.fetchone():
+            self.db.cursor.execute(
+                "INSERT INTO shifts (user_id, username, date, status) VALUES (?, ?, ?, ?)",
+                (user_id, username, today, status)
+            )
+            self.db.conn.commit()
+
+    def get_all_shifts(self):
+        self.db.cursor.execute("SELECT id, user_id, username, date, status FROM shifts ORDER BY date DESC")
+        rows = self.db.cursor.fetchall()
+
+        # Ham veriyi (tuple) Shift nesnelerine dönüştürüyoruz (Mapping)
+        return [Shift(r[0], r[1], r[2], r[3], r[4]) for r in rows]

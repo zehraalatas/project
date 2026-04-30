@@ -1,5 +1,7 @@
 import customtkinter as ctk
-
+from models.application import JobApplication
+from models.leave_request import LeaveRequest
+from models.raise_request import RaiseRequest
 
 class ManagerDashboard:
     def __init__(self, app):
@@ -25,46 +27,61 @@ class ManagerDashboard:
 
     def load_requests(self):
         for widget in self.tab_requests.winfo_children(): widget.destroy()
-        requests = self.app.hr_service.get_pending_requests()
+
+        self.app.db_manager.cursor.execute(
+            "SELECT id, sender_name, request_type, detail, status FROM requests WHERE status='Bekliyor'")
+        rows = self.app.db_manager.cursor.fetchall()
+
+        # Talepleri tipine göre sınıflara ayırıyoruz
+        requests = []
+        for r in rows:
+            if r[2] == "İzin":
+                requests.append(LeaveRequest(r[0], r[1], r[3], r[4]))
+            else:
+                requests.append(RaiseRequest(r[0], r[1], r[3], r[4]))
 
         scroll = ctk.CTkScrollableFrame(self.tab_requests, width=750, height=350, fg_color="transparent")
         scroll.pack(fill="both", expand=True, pady=10)
 
-        for i, req in enumerate(requests, start=1):
-            req_id, sender, r_type, detail, status = req
+        for i, req_obj in enumerate(requests, start=1):
+            # req_obj artık bir nesne (Object)
+            color = "#f39c12" if isinstance(req_obj, LeaveRequest) else "#8e44ad"
 
-            ctk.CTkLabel(scroll, text=f"Gönderen: {sender.capitalize()} | Tür: {r_type}",
-                         font=("Helvetica", 14, "bold"), text_color="#f39c12").grid(row=i, column=0, padx=15, pady=15)
+            ctk.CTkLabel(scroll, text=f"Gönderen: {req_obj.sender.capitalize()} | Tür: {req_obj.request_type}",
+                         font=("Helvetica", 14, "bold"), text_color=color).grid(row=i, column=0, padx=15, pady=15)
 
-            det_box = ctk.CTkTextbox(scroll, width=250, height=50, wrap="word", fg_color="#2b2b2b")
-            det_box.insert("0.0", detail)
+            det_box = ctk.CTkTextbox(scroll, width=250, height=50, wrap="word")
+            det_box.insert("0.0", req_obj.detail)
             det_box.configure(state="disabled")
             det_box.grid(row=i, column=1, padx=15, pady=15)
 
+            # İşlemler aynı kalabilir ama arka planda nesneyle çalıştık
             ctk.CTkButton(scroll, text="Onayla ✔", width=80, fg_color="#2ecc71",
-                          command=lambda r=req_id, t=r_type, s=sender: self.process_request(r, t, s, "Onaylandı")).grid(
-                row=i, column=2, padx=5, pady=15)
-            ctk.CTkButton(scroll, text="Reddet ✖", width=80, fg_color="#e74c3c",
-                          command=lambda r=req_id, t=r_type, s=sender: self.process_request(r, t, s,
-                                                                                            "Reddedildi")).grid(row=i,
-                                                                                                                column=3,
-                                                                                                                padx=5,
-                                                                                                                pady=15)
+                          command=lambda r=req_obj.request_id, t=req_obj.request_type, s=req_obj.sender:
+                          self.process_request(r, t, s, "Onaylandı")).grid(row=i, column=2, padx=5, pady=15)
 
     def load_applications(self):
         for widget in self.tab_apps.winfo_children(): widget.destroy()
-        apps = self.app.hr_service.get_pending_applications()
+
+        # Ham veriyi çek
+        self.app.db_manager.cursor.execute(
+            "SELECT id, name, desired_role, status FROM applications WHERE status='Bekliyor'")
+        rows = self.app.db_manager.cursor.fetchall()
+
+        # Ham veriyi nesnelere (Object) dönüştür
+        apps = [JobApplication(r[0], r[1], r[2], r[3]) for r in rows]
 
         scroll = ctk.CTkScrollableFrame(self.tab_apps, width=750, height=350, fg_color="transparent")
         scroll.pack(fill="both", expand=True, pady=10)
 
-        for i, app_data in enumerate(apps, start=1):
-            app_id, name, role, status = app_data
-            ctk.CTkLabel(scroll, text=f"Aday: {name.capitalize()} | İstenen Rol: {role}",
+        for i, app_obj in enumerate(apps, start=1):
+            # r[1] yerine artık app_obj.name kullanabiliyoruz
+            ctk.CTkLabel(scroll, text=f"Aday: {app_obj.name.capitalize()} | İstenen Rol: {app_obj.desired_role}",
                          font=("Helvetica", 14, "bold")).grid(row=i, column=0, padx=30, pady=15)
+
             ctk.CTkButton(scroll, text="İşe Al", width=100, fg_color="#2ecc71",
-                          command=lambda a=app_id: self.process_app(a, "Onaylandı")).grid(row=i, column=1, padx=10,
-                                                                                          pady=15)
+                          command=lambda a=app_obj.app_id: self.process_app(a, "Onaylandı")).grid(row=i, column=1,
+                                                                                                  padx=10, pady=15)
 
     def process_request(self, req_id, r_type, sender, status):
         if r_type == "İzin" and status == "Onaylandı":
@@ -114,6 +131,7 @@ class ManagerDashboard:
             def confirm():
                 self.app.hr_service.set_off_day_by_username(sender, available_day)
                 self.app.hr_service.update_request_status(req_id, status)
+                self.app.notification_service.send(sender, "İzin talebiniz onaylandı ✅")
                 self.load_requests()
                 win.destroy()
 
@@ -121,10 +139,23 @@ class ManagerDashboard:
                           fg_color="#2ecc71", width=200, height=40,
                           font=("Helvetica", 13, "bold")).pack(pady=15)
 
-        else:
-            self.app.hr_service.update_request_status(req_id, status)
-            self.load_requests()
 
+
+        # else bloğunu şöyle güncellemeyi dene:
+
+        else:
+
+            self.app.hr_service.update_request_status(req_id, status)
+
+            if status == "Onaylandı":
+
+                self.app.notification_service.send(sender, f"{r_type} talebiniz onaylandı ✅")
+
+            elif status == "Reddedildi":
+
+                self.app.notification_service.send(sender, f"{r_type} talebiniz reddedildi ❌")
+
+            self.load_requests()
     def process_app(self, app_id, status):
         self.app.hr_service.process_application(app_id, status)
         self.load_applications()

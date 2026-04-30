@@ -1,5 +1,10 @@
 from models.user import User
 from services.validation_service import ValidationService
+from models.user import User
+from models.employee import Employee
+from models.manager import Manager
+from models.patron import Patron
+from services.validation_service import ValidationService
 
 
 class AuthService:
@@ -12,8 +17,17 @@ class AuthService:
             "SELECT id, username, role, salary, manager_id, off_day FROM users WHERE username=? AND password=?",
             (username, password))
         result = self.db.cursor.fetchone()
+
         if result:
-            return User(result[0], result[1], result[2], result[3], result[4], result[5])
+            u_id, u_name, u_role, u_salary, u_mid, u_off = result
+
+            # Rolüne göre özel sınıf nesnesi oluşturuyoruz (Polymorphism hazırlığı)
+            if u_role == "Patron":
+                return Patron(u_id, u_name, u_off)
+            elif u_role == "Müdür":
+                return Manager(u_id, u_name, u_salary, u_off)
+            else:
+                return Employee(u_id, u_name, u_role, u_salary, u_mid, u_off)
         return None
 
     def update_credentials(self, user_id, new_username, new_password):

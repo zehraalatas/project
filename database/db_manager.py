@@ -9,35 +9,85 @@ class DatabaseManager:
     def create_tables(self):
         # Kullanıcılar Tablosu (off_day sütunu eklendi)
         self.cursor.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE,
-            password TEXT,
-            role TEXT,
-            salary REAL,
-            manager_id INTEGER,
-            off_day TEXT
-        )
-        """)
+                            CREATE TABLE IF NOT EXISTS users
+                            (
+                                id
+                                INTEGER
+                                PRIMARY
+                                KEY
+                                AUTOINCREMENT,
+                                username
+                                TEXT
+                                UNIQUE,
+                                password
+                                TEXT,
+                                role
+                                TEXT,
+                                salary
+                                REAL,
+                                manager_id
+                                INTEGER,
+                                off_day
+                                TEXT
+                            )
+                            """)
 
         self.cursor.execute("""
-        CREATE TABLE IF NOT EXISTS applications (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
-            desired_role TEXT,
-            status TEXT
-        )
-        """)
+                            CREATE TABLE IF NOT EXISTS applications
+                            (
+                                id
+                                INTEGER
+                                PRIMARY
+                                KEY
+                                AUTOINCREMENT,
+                                name
+                                TEXT,
+                                desired_role
+                                TEXT,
+                                status
+                                TEXT
+                            )
+                            """)
 
         self.cursor.execute("""
-        CREATE TABLE IF NOT EXISTS requests (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            sender_name TEXT,
-            request_type TEXT,
-            detail TEXT,
-            status TEXT
-        )
-        """)
+                            CREATE TABLE IF NOT EXISTS requests
+                            (
+                                id
+                                INTEGER
+                                PRIMARY
+                                KEY
+                                AUTOINCREMENT,
+                                sender_name
+                                TEXT,
+                                request_type
+                                TEXT,
+                                detail
+                                TEXT,
+                                status
+                                TEXT
+                            )
+                            """)
+
+        # YENİ: Mesai Kayıtları Tablosu (Kimin hangi gün çalıştığını tutar)
+        self.cursor.execute("""
+                            CREATE TABLE IF NOT EXISTS shifts
+                            (
+                                id
+                                INTEGER
+                                PRIMARY
+                                KEY
+                                AUTOINCREMENT,
+                                user_id
+                                INTEGER,
+                                username
+                                TEXT,
+                                date
+                                TEXT,
+                                status
+                                TEXT
+                            )
+                            """)
+
 
         # Varsayılan Hesaplar (İzin günleri Pazartesi olarak ayarlandı)
         self.cursor.execute("SELECT * FROM users WHERE role='Patron'")
