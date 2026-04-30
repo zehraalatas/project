@@ -69,3 +69,68 @@ class HRService:
     def get_forwarded_raises(self):
         self.db.cursor.execute("SELECT * FROM requests WHERE status='Müdür Onayladı' AND request_type='Zam'")
         return self.db.cursor.fetchall()
+
+    def final_approve_raise(self, req_id, percent):
+        # Talebi gönderen çalışanı bul
+        self.db.cursor.execute("SELECT sender_name FROM requests WHERE id=?", (req_id,))
+        sender = self.db.cursor.fetchone()[0]
+
+        # Mevcut maaşı al
+        self.db.cursor.execute("SELECT salary FROM users WHERE username=?", (sender,))
+        result = self.db.cursor.fetchone()
+
+        if result:
+            current_salary = result[0]
+            new_salary = round(current_salary * (1 + percent / 100))
+            self.db.cursor.execute("UPDATE users SET salary=? WHERE username=?", (new_salary, sender))
+
+        self.db.cursor.execute("UPDATE requests SET status='Kesin Onaylandı' WHERE id=?", (req_id,))
+        self.db.conn.commit()
+
+        return current_salary, new_salary  # UI'da göstermek için
+
+    def check_off_day_conflict(self, user_id, role, new_off_day):
+        # O roldeki toplam çalışan sayısı (kendisi dahil)
+        self.db.cursor.execute("""
+            SELECT COUNT(*) FROM users 
+            WHERE role=? AND role NOT IN ('Patron', 'Müdür')
+        """, (role,))
+        total_same_role = self.db.cursor.fetchone()[0]
+
+        # Rolde tek kişiyse izin günü hiç olamaz
+        if total_same_role <= 1:
+            return False, f"Sistemde tek {role} var, izin günü atanamaz!"
+
+        # Birden fazla kişi varsa — o gün çakışma kontrolü
+        self.db.cursor.execute("""
+            SELECT COUNT(*) FROM users 
+            WHERE role=? AND off_day=? AND id!=?
+        """, (role, new_off_day, user_id))
+        already_off_count = self.db.cursor.fetchone()[0]
+
+        working_that_day = (total_same_role - 1) - already_off_count  # -1: kendisi izinde
+
+        if working_that_day < 1:
+            return False, f"O gün tüm {role}lar izinli! Başka bir gün seçin."
+
+        return True, "OK"
+
+    def get_available_off_day(self, user_id, role):
+        """
+        O roldeki diğer çalışanların izin günlerine bakar,
+        çakışmayan ilk günü döndürür. Bulamazsa None döner.
+        """
+        days = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
+
+        # O roldeki diğer kişilerin izin günleri
+        self.db.cursor.execute(
+            "SELECT off_day FROM users WHERE role=? AND id!=?", (role, user_id)
+        )
+        taken_days = {row[0] for row in self.db.cursor.fetchall()}
+
+        # Çakışmayan ilk günü bul
+        for day in days:
+            if day not in taken_days:
+                return day
+
+        return None  # Tüm günler dolu

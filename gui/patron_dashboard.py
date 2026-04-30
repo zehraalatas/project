@@ -63,15 +63,38 @@ class PatronDashboard:
 
         for i, person in enumerate(staff, start=1):
             p_id, name, current_off, role = person
-            ctk.CTkLabel(scroll, text=f"{name.capitalize()}", font=("Helvetica", 14, "bold")).grid(row=i, column=0,
-                                                                                                   padx=20, pady=10)
 
-            combo = ctk.CTkComboBox(scroll, values=days, width=120)
-            combo.set(current_off)
-            combo.grid(row=i, column=1, padx=10)
+            # Rolden kaç kişi var kontrol et
+            # Bununla değiştir:
+            if role in ('Patron', 'Müdür'):
+                role_count = 99  # Müdür ve patron için her zaman izin atanabilir
+            else:
+                self.app.db_manager.cursor.execute(
+                    "SELECT COUNT(*) FROM users WHERE role=?", (role,)
+                )
+                role_count = self.app.db_manager.cursor.fetchone()[0]
 
-            ctk.CTkButton(scroll, text="Güncelle", width=80, fg_color="#3498db",
-                          command=lambda id=p_id, c=combo: self.update_day(id, c.get())).grid(row=i, column=2, padx=5)
+            ctk.CTkLabel(scroll, text=f"{name.capitalize()}", font=("Helvetica", 14, "bold")).grid(
+                row=i, column=0, padx=20, pady=10)
+
+            if role_count <= 1:
+                # Tek kişi — izin günü atanamaz, combo yerine kilitli etiket
+                ctk.CTkLabel(scroll, text="🔒 İzin Yok (Tek çalışan)",
+                             font=("Helvetica", 12), text_color="#e74c3c", width=180).grid(
+                    row=i, column=1, padx=10)
+
+                # Güncelle butonu da devre dışı
+                ctk.CTkButton(scroll, text="Güncelle", width=80, fg_color="gray", state="disabled").grid(
+                    row=i, column=2, padx=5)
+            else:
+                combo = ctk.CTkComboBox(scroll, values=days, width=120)
+                combo.set(current_off)
+                combo.grid(row=i, column=1, padx=10)
+
+                ctk.CTkButton(scroll, text="Güncelle", width=80, fg_color="#3498db",
+                              command=lambda id=p_id, c=combo: self.update_day(id, c.get())).grid(
+                    row=i, column=2, padx=5)
+
             ctk.CTkButton(scroll, text="Kov (İşten Çıkar)", width=120, fg_color="#c0392b",
                           command=lambda id=p_id: self.fire_staff(id)).grid(row=i, column=3, padx=20)
 
@@ -100,6 +123,11 @@ class PatronDashboard:
         for widget in self.tab_approvals.winfo_children(): widget.destroy()
         raises = self.app.hr_service.get_forwarded_raises()
 
+        if not raises:
+            ctk.CTkLabel(self.tab_approvals, text="Bekleyen zam talebi yok.",
+                         font=("Helvetica", 14), text_color="gray").pack(pady=40)
+            return
+
         for req in raises:
             r_id, sender, r_type, detail, status = req
             frame = ctk.CTkFrame(self.tab_approvals)
@@ -107,9 +135,82 @@ class PatronDashboard:
             ctk.CTkLabel(frame, text=f"👤 {sender.capitalize()} - ZAM TALEBİ ({detail})",
                          font=("Helvetica", 14, "bold")).pack(side="left", padx=20, pady=10)
             ctk.CTkButton(frame, text="Son Onayı Ver", width=120, fg_color="#2ecc71",
-                          command=lambda r=r_id: self.final_approve_raise(r)).pack(side="right", padx=10)
+                          command=lambda r=r_id, s=sender: self.open_raise_popup(r, s)).pack(side="right", padx=10)
+
+    def open_raise_popup(self, req_id, sender):
+        win = ctk.CTkToplevel(self.app)
+        win.title("Zam Oranı Belirle")
+        win.geometry("320x230")
+        win.grab_set()
+
+        ctk.CTkLabel(win, text=f"💰 {sender.capitalize()} için zam oranı",
+                     font=("Helvetica", 15, "bold")).pack(pady=20)
+
+        entry_frame = ctk.CTkFrame(win, fg_color="transparent")
+        entry_frame.pack()
+
+        percent_entry = ctk.CTkEntry(entry_frame, placeholder_text="Örn: 10", width=180, height=40,
+                                     font=("Helvetica", 14))
+        percent_entry.pack(side="left", padx=5)
+        ctk.CTkLabel(entry_frame, text="%", font=("Helvetica", 18, "bold")).pack(side="left")
+
+        status_lbl = ctk.CTkLabel(win, text="", font=("Helvetica", 12, "bold"))
+        status_lbl.pack(pady=8)
+
+        def confirm():
+            raw = percent_entry.get().strip()
+
+            # Sadece sayı ve nokta kabul et
+            if not raw.replace(".", "", 1).isdigit():
+                status_lbl.configure(text="⚠️ Lütfen geçerli bir sayı girin!", text_color="#e74c3c")
+                return
+
+            percent = float(raw)
+
+            if percent <= 0 or percent > 100:
+                status_lbl.configure(text="⚠️ Oran 0 ile 100 arasında olmalı!", text_color="#e74c3c")
+                return
+
+            old_sal, new_sal = self.app.hr_service.final_approve_raise(req_id, percent)
+
+            status_lbl.configure(
+                text=f"✅ {old_sal:,.0f} ₺ → {new_sal:,.0f} ₺",
+                text_color="#2ecc71"
+            )
+            self.load_salary_management()  # Maaş sekmesini anında güncelle
+            self.load_manager_approvals()  # Listeyi temizle
+            win.after(1800, win.destroy)
+
+        ctk.CTkButton(win, text="Onayla ve Uygula", command=confirm,
+                      fg_color="#2ecc71", width=200, height=40,
+                      font=("Helvetica", 13, "bold")).pack(pady=10)
 
     def update_day(self, p_id, new_day):
+        # Kişinin rolünü al
+        self.app.db_manager.cursor.execute("SELECT role FROM users WHERE id=?", (p_id,))
+        result = self.app.db_manager.cursor.fetchone()
+
+        if not result:
+            return
+
+        role = result[0]
+
+        # Çakışma kontrolü
+        ok, msg = self.app.hr_service.check_off_day_conflict(p_id, role, new_day)
+
+        if not ok:
+            # Uyarı popup'ı
+            win = ctk.CTkToplevel(self.app)
+            win.title("Uyarı")
+            win.geometry("320x160")
+            win.grab_set()
+            ctk.CTkLabel(win, text=f"⚠️ {msg}",
+                         font=("Helvetica", 13, "bold"),
+                         text_color="#e74c3c", wraplength=280).pack(pady=30)
+            ctk.CTkButton(win, text="Tamam", command=win.destroy,
+                          width=150, fg_color="#e74c3c").pack()
+            return
+
         self.app.hr_service.set_off_day_by_id(p_id, new_day)
         self.load_staff_management()
 

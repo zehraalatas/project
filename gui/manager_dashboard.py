@@ -67,27 +67,60 @@ class ManagerDashboard:
                                                                                           pady=15)
 
     def process_request(self, req_id, r_type, sender, status):
-        # EĞER İZİN ONAYLANIYORSA GÜN SEÇME EKRANI AÇILIR
         if r_type == "İzin" and status == "Onaylandı":
+
+            # Kullanıcı bilgilerini al
+            self.app.db_manager.cursor.execute(
+                "SELECT id, role FROM users WHERE username=?", (sender,)
+            )
+            result = self.app.db_manager.cursor.fetchone()
+
+            if not result:
+                return
+
+            user_id, role = result
+
+            # Tek çalışan kontrolü
+            ok, msg = self.app.hr_service.check_off_day_conflict(user_id, role, None)
+            # check_off_day_conflict'i biraz güncelleyeceğiz (aşağıda)
+
+            # Müsait gün bul
+            available_day = self.app.hr_service.get_available_off_day(user_id, role)
+
+            if not available_day:
+                # Hiç müsait gün yok — popup ile bildir
+                win = ctk.CTkToplevel(self.app)
+                win.title("Uyarı")
+                win.geometry("320x160")
+                win.grab_set()
+                ctk.CTkLabel(win, text=f"⚠️ {sender.capitalize()} için müsait izin günü bulunamadı!\nTüm günler dolu.",
+                             font=("Helvetica", 13, "bold"), text_color="#e74c3c", wraplength=280).pack(pady=30)
+                ctk.CTkButton(win, text="Tamam", command=win.destroy, width=150, fg_color="#e74c3c").pack()
+                return
+
+            # Müsait gün bulundu — onayla ve ata
             win = ctk.CTkToplevel(self.app)
-            win.title("İzin Günü Belirle")
-            win.geometry("300x200")
+            win.title("İzin Onayı")
+            win.geometry("320x200")
             win.grab_set()
 
-            ctk.CTkLabel(win, text=f"{sender.capitalize()} hangi gün izinli olsun?",
+            ctk.CTkLabel(win,
+                         text=f"✅ {sender.capitalize()} için\notomatik izin günü belirlendi:",
                          font=("Helvetica", 14, "bold")).pack(pady=20)
 
-            days = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
-            combo = ctk.CTkComboBox(win, values=days)
-            combo.pack(pady=10)
+            ctk.CTkLabel(win, text=f"📅 {available_day}",
+                         font=("Helvetica", 22, "bold"), text_color="#2ecc71").pack()
 
-            def save_day():
-                self.app.hr_service.set_off_day_by_username(sender, combo.get())
+            def confirm():
+                self.app.hr_service.set_off_day_by_username(sender, available_day)
                 self.app.hr_service.update_request_status(req_id, status)
                 self.load_requests()
                 win.destroy()
 
-            ctk.CTkButton(win, text="Kaydet", command=save_day).pack(pady=10)
+            ctk.CTkButton(win, text="Onayla", command=confirm,
+                          fg_color="#2ecc71", width=200, height=40,
+                          font=("Helvetica", 13, "bold")).pack(pady=15)
+
         else:
             self.app.hr_service.update_request_status(req_id, status)
             self.load_requests()

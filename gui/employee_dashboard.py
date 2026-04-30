@@ -31,14 +31,23 @@ class EmployeeDashboard:
         self.day_boxes = {}
         self.day_labels = {}
 
+        # Döngüden ÖNCE — sadece 1 kez hesapla
+        self.app.db_manager.cursor.execute(
+            "SELECT COUNT(*) FROM users WHERE role=?",
+            (self.user.role,)
+        )
+        role_count = self.app.db_manager.cursor.fetchone()[0]
+
+        # Takvim döngüsü — sadece kutuları çizer, başka hiçbir şey yok
         for i, day in enumerate(self.days):
             short_day = day[:3]
-            ctk.CTkLabel(self.table_frame, text=short_day, font=("Helvetica", 14, "bold"), width=80).grid(row=0,
-                                                                                                          column=i,
-                                                                                                          padx=5,
-                                                                                                          pady=5)
+            ctk.CTkLabel(self.table_frame, text=short_day, font=("Helvetica", 14, "bold"), width=80).grid(
+                row=0, column=i, padx=5, pady=5)
 
-            if day == self.user.off_day:
+            if role_count <= 1:
+                status_text = "09:00\n17:00"
+                color = "#2980b9"
+            elif day == self.user.off_day:
                 status_text = "OFF"
                 color = "#e74c3c"
             else:
@@ -55,15 +64,29 @@ class EmployeeDashboard:
             self.day_boxes[day] = box
             self.day_labels[day] = lbl
 
+        # Döngüden SONRA — sadece 1 kez oluştur
         self.btn_frame = ctk.CTkFrame(app, fg_color="transparent")
         self.btn_frame.pack(pady=10)
 
-        ctk.CTkButton(self.btn_frame, text="İzin İste", command=lambda: self.open_req("İzin"), width=150, height=45,
-                      fg_color="#f39c12").grid(row=0, column=0, padx=10)
-        ctk.CTkButton(self.btn_frame, text="Zam İste", command=lambda: self.open_req("Zam"), width=150, height=45,
-                      fg_color="#8e44ad").grid(row=0, column=1, padx=10)
+        if role_count <= 1:
+            ctk.CTkButton(
+                self.btn_frame, text="İzin İste (Tek çalışansın)",
+                width=200, height=45, fg_color="gray", state="disabled"
+            ).grid(row=0, column=0, padx=10)
+        else:
+            ctk.CTkButton(
+                self.btn_frame, text="İzin İste",
+                command=lambda: self.open_req("İzin"),
+                width=150, height=45, fg_color="#f39c12"
+            ).grid(row=0, column=0, padx=10)
 
-        # ALT BUTONLAR (AYARLAR VE ÇIKIŞ YAN YANA)
+        ctk.CTkButton(
+            self.btn_frame, text="Zam İste",
+            command=lambda: self.open_req("Zam"),
+            width=150, height=45, fg_color="#8e44ad"
+        ).grid(row=0, column=1, padx=10)
+
+        # Alt butonlar
         self.bottom_frame = ctk.CTkFrame(app, fg_color="transparent")
         self.bottom_frame.pack(side="bottom", pady=30)
 
@@ -101,7 +124,6 @@ class EmployeeDashboard:
 
         ctk.CTkButton(win, text="Gönder", command=submit).pack(pady=10)
 
-    # YENİ: Ayarlar Penceresi
     def open_settings(self):
         win = ctk.CTkToplevel(self.app)
         win.title("Hesap Ayarları")
@@ -111,7 +133,7 @@ class EmployeeDashboard:
         ctk.CTkLabel(win, text="⚙️ Bilgileri Güncelle", font=("Helvetica", 18, "bold")).pack(pady=20)
 
         user_entry = ctk.CTkEntry(win, placeholder_text="Yeni Kullanıcı Adı", width=250, height=40)
-        user_entry.insert(0, self.user.username)  # Mevcut ismi otomatik doldur
+        user_entry.insert(0, self.user.username)
         user_entry.pack(pady=10)
 
         pass_entry = ctk.CTkEntry(win, placeholder_text="Yeni Şifre", show="*", width=250, height=40)
@@ -128,15 +150,12 @@ class EmployeeDashboard:
                 status_lbl.configure(text="Alanlar boş bırakılamaz!", text_color="#e74c3c")
                 return
 
-            # Veritabanını güncelle
             success, msg = self.app.auth_service.update_credentials(self.user.user_id, new_user, new_pass)
 
             if success:
                 status_lbl.configure(text=msg, text_color="#2ecc71")
-                self.user.username = new_user  # Kendi ekranındaki ismi anında değiştir
+                self.user.username = new_user
                 self.header.configure(text=f"☕ Hoşgeldin {new_user.capitalize()}")
-
-                # 1.5 saniye sonra pencereyi otomatik kapat
                 win.after(1500, win.destroy)
             else:
                 status_lbl.configure(text=msg, text_color="#e74c3c")
