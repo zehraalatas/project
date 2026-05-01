@@ -102,4 +102,11 @@ class DatabaseManager:
         if not self.cursor.fetchone():
             self.cursor.execute("INSERT INTO users (username, password, role, salary, manager_id, off_day) VALUES (?, ?, ?, ?, ?, ?)", ('garson', 'garson123', 'Garson', 20000.0, 2, 'Pazartesi'))
 
+        try:
+                self.cursor.execute("ALTER TABLE shifts ADD COLUMN hours INTEGER DEFAULT 8")
+                print("✅ 'hours' sütunu mevcut veritabanına başarıyla eklendi!")
+        except sqlite3.OperationalError:
+                # Eğer sütun zaten varsa SQLite hata verir, biz bu hatayı görmezden geliyoruz (pass)
+            pass
+
         self.conn.commit()

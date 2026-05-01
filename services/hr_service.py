@@ -34,8 +34,9 @@ class HRService:
         self.db.conn.commit()
 
     def submit_internal_request(self, sender_name, request_type, detail):
+        # 'Bekliyor' yerine 'Müdür Onayı Bekliyor' yazıyoruz
         self.db.cursor.execute(
-            "INSERT INTO requests (sender_name, request_type, detail, status) VALUES (?, ?, ?, 'Bekliyor')",
+            "INSERT INTO requests (sender_name, request_type, detail, status) VALUES (?, ?, ?, 'Müdür Onayı Bekliyor')",
             (sender_name, request_type, detail))
         self.db.conn.commit()
 
@@ -43,20 +44,29 @@ class HRService:
         self.db.cursor.execute("SELECT * FROM requests WHERE status='Bekliyor'")
         return self.db.cursor.fetchall()
 
-    def update_request_status(self, req_id, status):
-        self.db.cursor.execute("SELECT request_type, sender_name FROM requests WHERE id=?", (req_id,))
+    def update_request_status(self, req_id, status, approver_role):
+        self.db.cursor.execute("SELECT sender_name, request_type FROM requests WHERE id=?", (req_id,))
         row = self.db.cursor.fetchone()
-        req_type, sender = row
+        if not row: return False
+        sender, req_type = row
 
-        final_status = status
-        if req_type == "Zam" and status == "Onaylandı":
-            final_status = "Müdür Onayladı"
+        if approver_role == "Müdür":
+            if status == "Onaylandı":
+                # Müdür onay verince adminin listesine düşmesi için status'ü değiştiriyoruz
+                new_status = "Patron Onayı Bekliyor"
+            else:
+                new_status = "Reddedildi"
 
-        self.db.cursor.execute("UPDATE requests SET status=? WHERE id=?", (final_status, req_id))
+        elif approver_role == "Patron":
+            if status == "Onaylandı":
+                new_status = "Kesin Onaylandı"
+                # İşe alım veya izin gününü burada tetikleyebiliriz
+            else:
+                new_status = "Reddedildi"
+
+        self.db.cursor.execute("UPDATE requests SET status=? WHERE id=?", (new_status, req_id))
         self.db.conn.commit()
-
-        return sender, req_type, final_status  # UI için döndür
-
+        return sender, req_type, new_status
     # YENİ: Takvim ve İşten Çıkarma Fonksiyonları
     def set_off_day_by_username(self, username, off_day):
         self.db.cursor.execute("UPDATE users SET off_day=? WHERE username=?", (off_day, username))
@@ -170,3 +180,10 @@ class HRService:
 
         # Ham veriyi (tuple) Shift nesnelerine dönüştürüyoruz (Mapping)
         return [Shift(r[0], r[1], r[2], r[3], r[4]) for r in rows]
+
+    def submit_manager_request(self, sender_name, request_type, detail):
+        """Müdürün talepleri doğrudan Patron'a gider"""
+        self.db.cursor.execute(
+            "INSERT INTO requests (sender_name, request_type, detail, status) VALUES (?, ?, ?, 'Patron Onayı Bekliyor')",
+            (sender_name, request_type, detail))
+        self.db.conn.commit()

@@ -140,15 +140,48 @@ class EmployeeDashboard:
         win.title(f"{req_type} Talebi")
         win.geometry("300x200")
         win.grab_set()
-        detail_entry = ctk.CTkEntry(win, placeholder_text="Açıklama...", width=250)
-        detail_entry.pack(pady=20)
+        win.attributes("-topmost", True)  # Pencerenin arkaya kaçmasını engeller
+
+        input_widget = None
+
+        # Eğer talep İZİN ise ComboBox (Açılır Liste) göster
+        if req_type == "İzin":
+            ctk.CTkLabel(win, text="Hangi gün için izin istiyorsunuz?", font=("Helvetica", 14, "bold")).pack(
+                pady=(25, 10))
+            days = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
+            input_widget = ctk.CTkComboBox(win, values=days, width=180, state="readonly")
+            input_widget.set("Gün Seçiniz")
+            input_widget.pack(pady=10)
+
+        # Eğer talep ZAM ise Entry (Yazı Alanı) göster
+        else:
+            ctk.CTkLabel(win, text="Zam talebinizi giriniz (Örn: %15):", font=("Helvetica", 14, "bold")).pack(
+                pady=(25, 10))
+            input_widget = ctk.CTkEntry(win, placeholder_text="Açıklama...", width=200)
+            input_widget.pack(pady=10)
 
         def submit():
-            self.app.hr_service.submit_internal_request(self.user.username, req_type, detail_entry.get())
+            detail = input_widget.get()
+
+            # Boş veya hatalı gönderimi engelle
+            if req_type == "İzin" and detail == "Gün Seçiniz":
+                return
+            if not detail.strip():
+                return
+
+            # Talebi HRService üzerinden gönder (Müdür onayına gider)
+            self.app.hr_service.submit_internal_request(self.user.username, req_type, detail)
+
+            # Personele kendi ekranında bildirim göster
+            self.app.notification_service.send(self.user.username,
+                                               f"✅ {req_type} talebiniz değerlendirilmesi için Müdür'e iletildi!")
+
             win.destroy()
 
-        ctk.CTkButton(win, text="Gönder", command=submit).pack(pady=10)
-
+        # Buton rengini talebe göre ayarla (İzin ise turuncu, Zam ise mor)
+        btn_color = "#f39c12" if req_type == "İzin" else "#8e44ad"
+        ctk.CTkButton(win, text="Talebi Gönder", command=submit, fg_color=btn_color,
+                      font=("Helvetica", 13, "bold")).pack(pady=15)
     def open_settings(self):
         # Ayarlar penceresini oluştur
         win = ctk.CTkToplevel(self.app)

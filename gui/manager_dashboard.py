@@ -3,6 +3,7 @@ from models.application import JobApplication
 from models.leave_request import LeaveRequest
 from models.raise_request import RaiseRequest
 
+
 class ManagerDashboard:
     def __init__(self, app):
         self.app = app
@@ -12,14 +13,18 @@ class ManagerDashboard:
                                    font=("Helvetica", 28, "bold"))
         self.header.pack(pady=(20, 10))
 
+        # Sekmeleri Oluştur
         self.tabview = ctk.CTkTabview(app, width=800, height=450)
         self.tabview.pack(pady=10, padx=20, fill="both", expand=True)
 
+        # Eski satırı bul ve şununla değiştir:
+        self.tab_my_schedule = self.tabview.add("👤 Profil ")
         self.tab_requests = self.tabview.add("📨 İç Talepler (İzin/Zam)")
-        self.tab_apps = self.tabview.add("👥 Yeni İş Başvuruları")
 
+
+        # Verileri Yükle
         self.load_requests()
-        self.load_applications()
+        self.load_my_schedule()
 
         self.logout_btn = ctk.CTkButton(app, text="Çıkış Yap", command=self.app.show_login_screen, fg_color="darkred",
                                         width=150)
@@ -28,134 +33,150 @@ class ManagerDashboard:
     def load_requests(self):
         for widget in self.tab_requests.winfo_children(): widget.destroy()
 
+        # Sadece "Müdür Onayı Bekliyor" statüsündeki İzin ve Zam taleplerini çek
         self.app.db_manager.cursor.execute(
-            "SELECT id, sender_name, request_type, detail, status FROM requests WHERE status='Bekliyor'")
-        rows = self.app.db_manager.cursor.fetchall()
+            "SELECT id, sender_name, request_type, detail, status FROM requests WHERE status='Müdür Onayı Bekliyor'"
+        )
+        requests = self.app.db_manager.cursor.fetchall()
 
-        # Talepleri tipine göre sınıflara ayırıyoruz
-        requests = []
-        for r in rows:
-            if r[2] == "İzin":
-                requests.append(LeaveRequest(r[0], r[1], r[3], r[4]))
-            else:
-                requests.append(RaiseRequest(r[0], r[1], r[3], r[4]))
+        if not requests:
+            ctk.CTkLabel(self.tab_requests, text="Bekleyen personel talebi yok.",
+                         font=("Helvetica", 14), text_color="gray").pack(pady=40)
+            return
 
-        scroll = ctk.CTkScrollableFrame(self.tab_requests, width=750, height=350, fg_color="transparent")
+        scroll = ctk.CTkScrollableFrame(self.tab_requests, fg_color="transparent")
         scroll.pack(fill="both", expand=True, pady=10)
 
-        for i, req_obj in enumerate(requests, start=1):
-            # req_obj artık bir nesne (Object)
-            color = "#f39c12" if isinstance(req_obj, LeaveRequest) else "#8e44ad"
+        for req in requests:
+            r_id, sender, r_type, detail, status = req
+            frame = ctk.CTkFrame(scroll)
+            frame.pack(pady=5, padx=20, fill="x")
 
-            ctk.CTkLabel(scroll, text=f"Gönderen: {req_obj.sender.capitalize()} | Tür: {req_obj.request_type}",
-                         font=("Helvetica", 14, "bold"), text_color=color).grid(row=i, column=0, padx=15, pady=15)
+            # Görsel ikonlar ekleyelim
+            icon = "📅" if r_type == "İzin" else "💰"
 
-            det_box = ctk.CTkTextbox(scroll, width=250, height=50, wrap="word")
-            det_box.insert("0.0", req_obj.detail)
-            det_box.configure(state="disabled")
-            det_box.grid(row=i, column=1, padx=15, pady=15)
+            ctk.CTkLabel(frame, text=f"{icon} {sender.capitalize()} - {r_type} ({detail})",
+                         font=("Helvetica", 14, "bold")).pack(side="left", padx=20, pady=10)
 
-            # İşlemler aynı kalabilir ama arka planda nesneyle çalıştık
-            ctk.CTkButton(scroll, text="Onayla ✔", width=80, fg_color="#2ecc71",
-                          command=lambda r=req_obj.request_id, t=req_obj.request_type, s=req_obj.sender:
-                          self.process_request(r, t, s, "Onaylandı")).grid(row=i, column=2, padx=5, pady=15)
+            # Butonlar: Onaylarsa Patron'a düşer, Redderse kapanır.
+            ctk.CTkButton(frame, text="Patrona İlet ✅", width=120, fg_color="#3498db",
+                          command=lambda r=r_id, s=sender: self.process_request(r, "Onaylandı", s)).pack(side="right",
+                                                                                                         padx=10)
 
-    def load_applications(self):
-        for widget in self.tab_apps.winfo_children(): widget.destroy()
+            ctk.CTkButton(frame, text="Reddet ❌", width=100, fg_color="#e74c3c",
+                          command=lambda r=r_id, s=sender: self.process_request(r, "Reddedildi", s)).pack(side="right",
+                                                                                                          padx=10)
 
-        # Ham veriyi çek
-        self.app.db_manager.cursor.execute(
-            "SELECT id, name, desired_role, status FROM applications WHERE status='Bekliyor'")
-        rows = self.app.db_manager.cursor.fetchall()
+    def process_request(self, req_id, status, sender):
+        # HRService içindeki mantığı 'Müdür' rolüyle çağırıyoruz
+        res = self.app.hr_service.update_request_status(req_id, status, "Müdür")
 
-        # Ham veriyi nesnelere (Object) dönüştür
-        apps = [JobApplication(r[0], r[1], r[2], r[3]) for r in rows]
-
-        scroll = ctk.CTkScrollableFrame(self.tab_apps, width=750, height=350, fg_color="transparent")
-        scroll.pack(fill="both", expand=True, pady=10)
-
-        for i, app_obj in enumerate(apps, start=1):
-            # r[1] yerine artık app_obj.name kullanabiliyoruz
-            ctk.CTkLabel(scroll, text=f"Aday: {app_obj.name.capitalize()} | İstenen Rol: {app_obj.desired_role}",
-                         font=("Helvetica", 14, "bold")).grid(row=i, column=0, padx=30, pady=15)
-
-            ctk.CTkButton(scroll, text="İşe Al", width=100, fg_color="#2ecc71",
-                          command=lambda a=app_obj.app_id: self.process_app(a, "Onaylandı")).grid(row=i, column=1,
-                                                                                                  padx=10, pady=15)
-
-    def process_request(self, req_id, r_type, sender, status):
-        if r_type == "İzin" and status == "Onaylandı":
-
-            # Kullanıcı bilgilerini al
-            self.app.db_manager.cursor.execute(
-                "SELECT id, role FROM users WHERE username=?", (sender,)
-            )
-            result = self.app.db_manager.cursor.fetchone()
-
-            if not result:
-                return
-
-            user_id, role = result
-
-            # Tek çalışan kontrolü
-            ok, msg = self.app.hr_service.check_off_day_conflict(user_id, role, None)
-            # check_off_day_conflict'i biraz güncelleyeceğiz (aşağıda)
-
-            # Müsait gün bul
-            available_day = self.app.hr_service.get_available_off_day(user_id, role)
-
-            if not available_day:
-                # Hiç müsait gün yok — popup ile bildir
-                win = ctk.CTkToplevel(self.app)
-                win.title("Uyarı")
-                win.geometry("320x160")
-                win.grab_set()
-                ctk.CTkLabel(win, text=f"⚠️ {sender.capitalize()} için müsait izin günü bulunamadı!\nTüm günler dolu.",
-                             font=("Helvetica", 13, "bold"), text_color="#e74c3c", wraplength=280).pack(pady=30)
-                ctk.CTkButton(win, text="Tamam", command=win.destroy, width=150, fg_color="#e74c3c").pack()
-                return
-
-            # Müsait gün bulundu — onayla ve ata
-            win = ctk.CTkToplevel(self.app)
-            win.title("İzin Onayı")
-            win.geometry("320x200")
-            win.grab_set()
-
-            ctk.CTkLabel(win,
-                         text=f"✅ {sender.capitalize()} için\notomatik izin günü belirlendi:",
-                         font=("Helvetica", 14, "bold")).pack(pady=20)
-
-            ctk.CTkLabel(win, text=f"📅 {available_day}",
-                         font=("Helvetica", 22, "bold"), text_color="#2ecc71").pack()
-
-            def confirm():
-                self.app.hr_service.set_off_day_by_username(sender, available_day)
-                self.app.hr_service.update_request_status(req_id, status)
-                self.app.notification_service.send(sender, "İzin talebiniz onaylandı ✅")
-                self.load_requests()
-                win.destroy()
-
-            ctk.CTkButton(win, text="Onayla", command=confirm,
-                          fg_color="#2ecc71", width=200, height=40,
-                          font=("Helvetica", 13, "bold")).pack(pady=15)
-
-
-
-        # else bloğunu şöyle güncellemeyi dene:
-
-        else:
-
-            self.app.hr_service.update_request_status(req_id, status)
-
+        if res:
+            # İşlem başarılıysa bildirim gönder
             if status == "Onaylandı":
+                self.app.notification_service.send(sender,
+                                                   "Talebiniz Müdür tarafından onaylandı, Patron onayı bekleniyor. ⏳")
+            else:
+                self.app.notification_service.send(sender, "Talebiniz Müdür tarafından reddedildi. ❌")
 
-                self.app.notification_service.send(sender, f"{r_type} talebiniz onaylandı ✅")
+        # Ekranı tazele
+        self.load_requests()
 
-            elif status == "Reddedildi":
+    def load_my_schedule(self):
+        for widget in self.tab_my_schedule.winfo_children(): widget.destroy()
 
-                self.app.notification_service.send(sender, f"{r_type} talebiniz reddedildi ❌")
+        # 1. Kullanıcı bilgilerini çek
+        self.app.db_manager.cursor.execute("SELECT role, salary, off_day FROM users WHERE username=?", (self.user.username,))
+        result = self.app.db_manager.cursor.fetchone()
+        role, salary, off_day = result if result else ("Müdür", 0, "Belirsiz")
 
-            self.load_requests()
-    def process_app(self, app_id, status):
-        self.app.hr_service.process_application(app_id, status)
-        self.load_applications()
+        # 2. Üst Bilgi (Pozisyon ve Maaş - Resimdeki gibi gri ve ortalanmış)
+        info_label = ctk.CTkLabel(self.tab_my_schedule, text=f"Pozisyon: {role} | Maaş: {salary:,.1f} ₺", font=("Helvetica", 16), text_color="gray")
+        info_label.pack(pady=(10, 20))
+
+        # 3. Bildirimler Butonu (Resimdeki geniş, koyu mavi buton)
+        notif_btn = ctk.CTkButton(self.tab_my_schedule, text="🔔 Bildirimler", fg_color="#34495e", hover_color="#2c3e50", width=400, height=40)
+        notif_btn.pack(pady=10)
+
+        # 4. Çalışma Programı Başlığı
+        schedule_label = ctk.CTkLabel(self.tab_my_schedule, text="📅 Çalışma Programın", font=("Helvetica", 18, "bold"))
+        schedule_label.pack(pady=(30, 20))
+
+        # 5. Günler Kutucukları (İşte resimdeki o yan yana diziliş)
+        days_frame = ctk.CTkFrame(self.tab_my_schedule, fg_color="transparent")
+        days_frame.pack(pady=10)
+
+        gunler_kisa = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cts", "Paz"]
+        gunler_uzun = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
+
+        for i in range(7):
+            day_col = ctk.CTkFrame(days_frame, fg_color="transparent")
+            day_col.grid(row=0, column=i, padx=10)
+
+            # Üstteki gün ismi
+            ctk.CTkLabel(day_col, text=gunler_kisa[i], font=("Helvetica", 14, "bold")).pack(pady=(0, 10))
+
+            # Alttaki renkli kutu (İzin gününe denk geliyorsa kırmızı OFF, değilse yeşil Çalışıyor)
+            is_off = (gunler_uzun[i] == off_day)
+            box_color = "#e74c3c" if is_off else "#2ecc71"
+            box_text = "OFF" if is_off else "Çalışıyor"
+
+            box = ctk.CTkFrame(day_col, fg_color=box_color, width=90, height=80, corner_radius=10)
+            box.pack_propagate(False) # Çerçevenin içindeki yazıya göre küçülmesini engeller, boyutunu sabit tutar
+            box.pack()
+
+            ctk.CTkLabel(box, text=box_text, font=("Helvetica", 14, "bold"), text_color="white").place(relx=0.5, rely=0.5, anchor="center")
+
+        # 6. Alt Butonlar (İzin İste ve Zam İste)
+        btn_frame = ctk.CTkFrame(self.tab_my_schedule, fg_color="transparent")
+        btn_frame.pack(pady=40)
+
+        # Turuncu/Sarı İzin Butonu
+        izin_btn = ctk.CTkButton(btn_frame, text="İzin İste", fg_color="#f39c12", hover_color="#d68910",
+                                 width=160, height=45, font=("Helvetica", 14, "bold"), command=self.open_leave_popup)
+        izin_btn.pack(side="left", padx=20)
+
+        # Mor Zam Butonu
+        zam_btn = ctk.CTkButton(btn_frame, text="Zam İste", fg_color="#8e44ad", hover_color="#732d91",
+                                width=160, height=45, font=("Helvetica", 14, "bold"), command=self.open_raise_popup)
+        zam_btn.pack(side="left", padx=20)
+
+
+    # --- YENİ EKLENEN POPUP FONKSİYONLARI ---
+    # (Butonlara basılınca giriş alanını sayfa içinde değil, tatlı bir pencere olarak açar)
+
+    def open_leave_popup(self):
+        # Özel bir küçük pencere (Toplevel) oluşturuyoruz
+        popup = ctk.CTkToplevel(self.app)
+        popup.title("İzin Talebi")
+        popup.geometry("300x200")
+        popup.grab_set() # Kullanıcının sadece bu pencereye odaklanmasını sağlar
+        popup.attributes("-topmost", True) # Pencereyi en üstte tutar
+
+        ctk.CTkLabel(popup, text="Hangi gün için izin istiyorsunuz?", font=("Helvetica", 14, "bold")).pack(pady=(25, 10))
+
+        # Günlerin listesi
+        days = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
+        combo = ctk.CTkComboBox(popup, values=days, width=180, state="readonly") # Sadece listeden seçilebilir
+        combo.set("Gün Seçiniz")
+        combo.pack(pady=10)
+
+        # Onay Butonunun İşlevi
+        def submit():
+            secilen_gun = combo.get()
+            if secilen_gun != "Gün Seçiniz":
+                self.send_manager_request("İzin", secilen_gun)
+                popup.destroy() # Talebi gönderip pencereyi kapatır
+
+        ctk.CTkButton(popup, text="Talebi Gönder", fg_color="#f39c12", hover_color="#d68910", font=("Helvetica", 13, "bold"), command=submit).pack(pady=15)
+    def open_raise_popup(self):
+        dialog = ctk.CTkInputDialog(text="Zam talebinizi giriniz:\n(Örn: %15 veya 5000 TL)", title="Zam Talebi")
+        istek = dialog.get_input()
+        if istek:
+            self.send_manager_request("Zam", istek)
+
+    def send_manager_request(self, req_type, detail):
+        self.app.hr_service.submit_manager_request(self.user.username, req_type, detail)
+        self.app.notification_service.send(self.user.username, f"✅ {req_type} talebiniz değerlendirilmesi için Patron'a iletildi!")
+        print(f"Başarılı: {req_type} talebi ({detail}) patrona iletildi.")
+        print(f"Başarılı: {req_type} talebi ({detail}) patrona iletildi.")
