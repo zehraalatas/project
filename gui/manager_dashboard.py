@@ -98,6 +98,11 @@ class ManagerDashboard:
         notif_btn = ctk.CTkButton(self.tab_my_schedule, text="🔔 Bildirimler", fg_color="#34495e", hover_color="#2c3e50", width=400, height=40)
         notif_btn.pack(pady=10)
 
+        self.board_btn = ctk.CTkButton(self.tab_my_schedule, text="📝 Tüm Departmanların Panosu",
+                                       command=self.open_notice_board, fg_color="#8e44ad",
+                                       hover_color="#732d91", width=400, height=40)
+        self.board_btn.pack(pady=10)
+
         # 4. Çalışma Programı Başlığı
         schedule_label = ctk.CTkLabel(self.tab_my_schedule, text="📅 Çalışma Programın", font=("Helvetica", 18, "bold"))
         schedule_label.pack(pady=(30, 20))
@@ -180,3 +185,53 @@ class ManagerDashboard:
         self.app.notification_service.send(self.user.username, f"✅ {req_type} talebiniz değerlendirilmesi için Patron'a iletildi!")
         print(f"Başarılı: {req_type} talebi ({detail}) patrona iletildi.")
         print(f"Başarılı: {req_type} talebi ({detail}) patrona iletildi.")
+
+    def open_notice_board(self):
+        win = ctk.CTkToplevel(self.app)
+        win.title("Genel Pano (Yönetici)")
+        win.geometry("500x550")
+        win.grab_set()
+
+        ctk.CTkLabel(win, text="📝 Tüm Departmanların İletişim Panosu", font=("Helvetica", 18, "bold")).pack(pady=10)
+
+        scroll = ctk.CTkScrollableFrame(win, fg_color="#2c3e50")
+        scroll.pack(fill="both", expand=True, padx=10, pady=10)
+
+        def load_notes():
+            for w in scroll.winfo_children(): w.destroy()
+            notes = self.app.note_service.get_notes_for_user(self.user.role)
+            if not notes:
+                ctk.CTkLabel(scroll, text="Henüz bir not yok.", text_color="gray").pack(pady=20)
+            for note in notes:
+                msg_frame = ctk.CTkFrame(scroll, fg_color="#34495e", corner_radius=8)
+                msg_frame.pack(fill="x", pady=5, padx=5)
+                # Yöneticilere özel: Mesajın kime gittiğini (Hedef) de gösteriyoruz
+                header_text = f"👤 {note.sender_name} ➔ [Hedef: {note.target_role}] ({note.date})"
+                ctk.CTkLabel(msg_frame, text=header_text, font=("Helvetica", 11, "bold"), text_color="#f1c40f",
+                             anchor="w").pack(fill="x", padx=10, pady=(5, 0))
+                ctk.CTkLabel(msg_frame, text=note.content, font=("Helvetica", 13), anchor="w", wraplength=430).pack(
+                    fill="x", padx=10, pady=(0, 5))
+
+        load_notes()
+
+        input_frame = ctk.CTkFrame(win, fg_color="transparent")
+        input_frame.pack(fill="x", padx=10, pady=10)
+
+        # Yöneticiler mesaj atarken hedef departmanı seçsin
+        target_combo = ctk.CTkComboBox(input_frame, values=["Garson", "Barista", "Kasiyer", "Aşçı", "Temizlikçi"],
+                                       width=110)
+        target_combo.pack(side="left", padx=5)
+
+        msg_entry = ctk.CTkEntry(input_frame, placeholder_text="Not yazın...", width=250)
+        msg_entry.pack(side="left", padx=5)
+
+        def send_note():
+            content = msg_entry.get().strip()
+            target = target_combo.get()
+            if content:
+                self.app.note_service.add_note(self.user.username, self.user.role, target, content)
+                msg_entry.delete(0, 'end')
+                load_notes()
+
+        ctk.CTkButton(input_frame, text="Gönder", width=70, command=send_note, fg_color="#2ecc71").pack(side="right",
+                                                                                                        padx=5)

@@ -27,6 +27,10 @@ class EmployeeDashboard:
                                        font=("Helvetica", 14))
         self.notif_btn.pack(pady=10)
 
+        self.board_btn = ctk.CTkButton(app, text="📝 Departman Panosu", command=self.open_notice_board,
+                                       width=300, height=40, fg_color="#8e44ad", font=("Helvetica", 14))
+        self.board_btn.pack(pady=10)
+
         # --- Otomatik Durum Kaydı (Shifts) ---
         # Bugünün ismini Schedule modelindeki listeye göre alıyoruz
         today_name = self.user_schedule.DAYS[datetime.datetime.today().weekday()]
@@ -228,3 +232,50 @@ class EmployeeDashboard:
 
         ctk.CTkButton(win, text="Kaydet", command=save_settings,
                       fg_color="#3498db", width=200, height=40).pack(pady=15)
+
+
+    def open_notice_board(self):
+        win = ctk.CTkToplevel(self.app)
+        win.title(f"{self.user.role} Panosu")
+        win.geometry("450x500")
+        win.grab_set()
+
+        ctk.CTkLabel(win, text=f"📝 {self.user.role} İletişim Panosu", font=("Helvetica", 18, "bold")).pack(pady=10)
+
+        # Mesajların listeleneceği alan
+        scroll = ctk.CTkScrollableFrame(win, fg_color="#2c3e50")
+        scroll.pack(fill="both", expand=True, padx=10, pady=10)
+
+        def load_notes():
+            for w in scroll.winfo_children(): w.destroy()
+            notes = self.app.note_service.get_notes_for_user(self.user.role)
+            if not notes:
+                ctk.CTkLabel(scroll, text="Henüz bir not yok.", text_color="gray").pack(pady=20)
+            for note in notes:
+                # Kendi yazdıkları yeşilimtrak, başkalarınınki mavimsi olabilir vs.
+                msg_frame = ctk.CTkFrame(scroll, fg_color="#34495e", corner_radius=8)
+                msg_frame.pack(fill="x", pady=5, padx=5)
+                ctk.CTkLabel(msg_frame, text=f"👤 {note.sender_name} ({note.date})", font=("Helvetica", 11, "bold"),
+                             text_color="#f1c40f", anchor="w").pack(fill="x", padx=10, pady=(5, 0))
+                ctk.CTkLabel(msg_frame, text=note.content, font=("Helvetica", 13), anchor="w", wraplength=380).pack(
+                    fill="x", padx=10, pady=(0, 5))
+
+        load_notes()
+
+        # Yeni Mesaj Yazma Alanı
+        input_frame = ctk.CTkFrame(win, fg_color="transparent")
+        input_frame.pack(fill="x", padx=10, pady=10)
+
+        msg_entry = ctk.CTkEntry(input_frame, placeholder_text="Buraya not yazın...", width=320)
+        msg_entry.pack(side="left", padx=5)
+
+        def send_note():
+            content = msg_entry.get().strip()
+            if content:
+                # Kendi rolüne mesaj atıyor (Örn: Barista ise Barista grubuna)
+                self.app.note_service.add_note(self.user.username, self.user.role, self.user.role, content)
+                msg_entry.delete(0, 'end')
+                load_notes()  # Panoyu yenile
+
+        ctk.CTkButton(input_frame, text="Gönder", width=80, command=send_note, fg_color="#2ecc71").pack(side="right",
+                                                                                                        padx=5)

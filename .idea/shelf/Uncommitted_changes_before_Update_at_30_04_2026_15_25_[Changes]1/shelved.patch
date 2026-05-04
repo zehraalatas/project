@@ -1,0 +1,552 @@
+Index: gui/employee_dashboard.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import customtkinter as ctk\r\nimport datetime\r\n\r\n\r\nclass EmployeeDashboard:\r\n    def __init__(self, app):\r\n        self.app = app\r\n        self.user = self.app.current_user\r\n\r\n        self.header = ctk.CTkLabel(app, text=f\"☕ Hoşgeldin {self.user.username.capitalize()}\",\r\n                                   font=(\"Helvetica\", 28, \"bold\"))\r\n        self.header.pack(pady=(30, 10))\r\n\r\n        self.role_label = ctk.CTkLabel(app, text=f\"Pozisyon: {self.user.role} | Maaş: {self.user.salary} ₺\",\r\n                                       font=(\"Helvetica\", 16), text_color=\"gray\")\r\n        self.role_label.pack(pady=5)\r\n\r\n        self.shift_btn = ctk.CTkButton(app, text=\"\uD83D\uDFE2 Mesai Yap\", command=self.do_shift, width=300, height=50,\r\n                                       font=(\"Helvetica\", 18, \"bold\"), fg_color=\"#2ecc71\")\r\n        self.shift_btn.pack(pady=20)\r\n\r\n        self.schedule_frame = ctk.CTkFrame(app, corner_radius=10)\r\n        self.schedule_frame.pack(pady=20, padx=40, fill=\"x\")\r\n\r\n        ctk.CTkLabel(self.schedule_frame, text=\"\uD83D\uDCC5 Çalışma Programın\", font=(\"Helvetica\", 16, \"bold\")).pack(pady=10)\r\n\r\n        self.table_frame = ctk.CTkFrame(self.schedule_frame, fg_color=\"transparent\")\r\n        self.table_frame.pack(pady=10)\r\n\r\n        self.days = [\"Pazartesi\", \"Salı\", \"Çarşamba\", \"Perşembe\", \"Cuma\", \"Cumartesi\", \"Pazar\"]\r\n        self.day_boxes = {}\r\n        self.day_labels = {}\r\n\r\n        for i, day in enumerate(self.days):\r\n            short_day = day[:3]\r\n            ctk.CTkLabel(self.table_frame, text=short_day, font=(\"Helvetica\", 14, \"bold\"), width=80).grid(row=0,\r\n                                                                                                          column=i,\r\n                                                                                                          padx=5,\r\n                                                                                                          pady=5)\r\n\r\n            if day == self.user.off_day:\r\n                status_text = \"OFF\"\r\n                color = \"#e74c3c\"\r\n            else:\r\n                status_text = \"09:00\\n17:00\"\r\n                color = \"#2980b9\"\r\n\r\n            box = ctk.CTkFrame(self.table_frame, width=80, height=60, fg_color=color, corner_radius=8)\r\n            box.grid(row=1, column=i, padx=5, pady=5)\r\n            box.grid_propagate(False)\r\n\r\n            lbl = ctk.CTkLabel(box, text=status_text, font=(\"Helvetica\", 12, \"bold\"), text_color=\"white\")\r\n            lbl.place(relx=0.5, rely=0.5, anchor=\"center\")\r\n\r\n            self.day_boxes[day] = box\r\n            self.day_labels[day] = lbl\r\n\r\n        self.btn_frame = ctk.CTkFrame(app, fg_color=\"transparent\")\r\n        self.btn_frame.pack(pady=10)\r\n\r\n        ctk.CTkButton(self.btn_frame, text=\"İzin İste\", command=lambda: self.open_req(\"İzin\"), width=150, height=45,\r\n                      fg_color=\"#f39c12\").grid(row=0, column=0, padx=10)\r\n        ctk.CTkButton(self.btn_frame, text=\"Zam İste\", command=lambda: self.open_req(\"Zam\"), width=150, height=45,\r\n                      fg_color=\"#8e44ad\").grid(row=0, column=1, padx=10)\r\n\r\n        # ALT BUTONLAR (AYARLAR VE ÇIKIŞ YAN YANA)\r\n        self.bottom_frame = ctk.CTkFrame(app, fg_color=\"transparent\")\r\n        self.bottom_frame.pack(side=\"bottom\", pady=30)\r\n\r\n        self.settings_btn = ctk.CTkButton(self.bottom_frame, text=\"⚙\uFE0F Ayarlar\", command=self.open_settings,\r\n                                          fg_color=\"#34495e\", hover_color=\"#2c3e50\", width=120)\r\n        self.settings_btn.grid(row=0, column=0, padx=10)\r\n\r\n        self.logout_btn = ctk.CTkButton(self.bottom_frame, text=\"Çıkış Yap\", command=self.app.show_login_screen,\r\n                                        fg_color=\"darkred\", width=120)\r\n        self.logout_btn.grid(row=0, column=1, padx=10)\r\n\r\n    def do_shift(self):\r\n        today_index = datetime.datetime.today().weekday()\r\n        today_str = self.days[today_index]\r\n\r\n        if today_str == self.user.off_day:\r\n            self.shift_btn.configure(text=\"Bugün Tatilsin!\", fg_color=\"#e74c3c\", state=\"disabled\")\r\n        else:\r\n            self.day_boxes[today_str].configure(fg_color=\"#27ae60\")\r\n            self.day_labels[today_str].configure(text=\"Bitti ✔\")\r\n            self.shift_btn.configure(text=\"Mesai Tamamlandı\", state=\"disabled\", fg_color=\"gray\")\r\n\r\n    def open_req(self, req_type):\r\n        win = ctk.CTkToplevel(self.app)\r\n        win.title(f\"{req_type} Talebi\")\r\n        win.geometry(\"300x200\")\r\n        win.grab_set()\r\n\r\n        detail_entry = ctk.CTkEntry(win, placeholder_text=\"Kısaca açıklayın...\", width=250)\r\n        detail_entry.pack(pady=20)\r\n\r\n        def submit():\r\n            self.app.hr_service.submit_internal_request(self.user.username, req_type, detail_entry.get())\r\n            win.destroy()\r\n\r\n        ctk.CTkButton(win, text=\"Gönder\", command=submit).pack(pady=10)\r\n\r\n    # YENİ: Ayarlar Penceresi\r\n    def open_settings(self):\r\n        win = ctk.CTkToplevel(self.app)\r\n        win.title(\"Hesap Ayarları\")\r\n        win.geometry(\"350x350\")\r\n        win.grab_set()\r\n\r\n        ctk.CTkLabel(win, text=\"⚙\uFE0F Bilgileri Güncelle\", font=(\"Helvetica\", 18, \"bold\")).pack(pady=20)\r\n\r\n        user_entry = ctk.CTkEntry(win, placeholder_text=\"Yeni Kullanıcı Adı\", width=250, height=40)\r\n        user_entry.insert(0, self.user.username)  # Mevcut ismi otomatik doldur\r\n        user_entry.pack(pady=10)\r\n\r\n        pass_entry = ctk.CTkEntry(win, placeholder_text=\"Yeni Şifre\", show=\"*\", width=250, height=40)\r\n        pass_entry.pack(pady=10)\r\n\r\n        status_lbl = ctk.CTkLabel(win, text=\"\", font=(\"Helvetica\", 12, \"bold\"))\r\n        status_lbl.pack(pady=5)\r\n\r\n        def save_settings():\r\n            new_user = user_entry.get().strip()\r\n            new_pass = pass_entry.get().strip()\r\n\r\n            if not new_user or not new_pass:\r\n                status_lbl.configure(text=\"Alanlar boş bırakılamaz!\", text_color=\"#e74c3c\")\r\n                return\r\n\r\n            # Veritabanını güncelle\r\n            success, msg = self.app.auth_service.update_credentials(self.user.user_id, new_user, new_pass)\r\n\r\n            if success:\r\n                status_lbl.configure(text=msg, text_color=\"#2ecc71\")\r\n                self.user.username = new_user  # Kendi ekranındaki ismi anında değiştir\r\n                self.header.configure(text=f\"☕ Hoşgeldin {new_user.capitalize()}\")\r\n\r\n                # 1.5 saniye sonra pencereyi otomatik kapat\r\n                win.after(1500, win.destroy)\r\n            else:\r\n                status_lbl.configure(text=msg, text_color=\"#e74c3c\")\r\n\r\n        ctk.CTkButton(win, text=\"Kaydet\", command=save_settings, fg_color=\"#3498db\", width=200, height=40).pack(pady=15)
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/gui/employee_dashboard.py b/gui/employee_dashboard.py
+--- a/gui/employee_dashboard.py	(revision bbdf855e3cd66c3e823846c2aa525395c00790e2)
++++ b/gui/employee_dashboard.py	(date 1777551915999)
+@@ -31,14 +31,23 @@
+         self.day_boxes = {}
+         self.day_labels = {}
+ 
++        # Döngüden ÖNCE — sadece 1 kez hesapla
++        self.app.db_manager.cursor.execute(
++            "SELECT COUNT(*) FROM users WHERE role=?",
++            (self.user.role,)
++        )
++        role_count = self.app.db_manager.cursor.fetchone()[0]
++
++        # Takvim döngüsü — sadece kutuları çizer, başka hiçbir şey yok
+         for i, day in enumerate(self.days):
+             short_day = day[:3]
+-            ctk.CTkLabel(self.table_frame, text=short_day, font=("Helvetica", 14, "bold"), width=80).grid(row=0,
+-                                                                                                          column=i,
+-                                                                                                          padx=5,
+-                                                                                                          pady=5)
++            ctk.CTkLabel(self.table_frame, text=short_day, font=("Helvetica", 14, "bold"), width=80).grid(
++                row=0, column=i, padx=5, pady=5)
+ 
+-            if day == self.user.off_day:
++            if role_count <= 1:
++                status_text = "09:00\n17:00"
++                color = "#2980b9"
++            elif day == self.user.off_day:
+                 status_text = "OFF"
+                 color = "#e74c3c"
+             else:
+@@ -55,15 +64,29 @@
+             self.day_boxes[day] = box
+             self.day_labels[day] = lbl
+ 
++        # Döngüden SONRA — sadece 1 kez oluştur
+         self.btn_frame = ctk.CTkFrame(app, fg_color="transparent")
+         self.btn_frame.pack(pady=10)
+ 
+-        ctk.CTkButton(self.btn_frame, text="İzin İste", command=lambda: self.open_req("İzin"), width=150, height=45,
+-                      fg_color="#f39c12").grid(row=0, column=0, padx=10)
+-        ctk.CTkButton(self.btn_frame, text="Zam İste", command=lambda: self.open_req("Zam"), width=150, height=45,
+-                      fg_color="#8e44ad").grid(row=0, column=1, padx=10)
++        if role_count <= 1:
++            ctk.CTkButton(
++                self.btn_frame, text="İzin İste (Tek çalışansın)",
++                width=200, height=45, fg_color="gray", state="disabled"
++            ).grid(row=0, column=0, padx=10)
++        else:
++            ctk.CTkButton(
++                self.btn_frame, text="İzin İste",
++                command=lambda: self.open_req("İzin"),
++                width=150, height=45, fg_color="#f39c12"
++            ).grid(row=0, column=0, padx=10)
+ 
+-        # ALT BUTONLAR (AYARLAR VE ÇIKIŞ YAN YANA)
++        ctk.CTkButton(
++            self.btn_frame, text="Zam İste",
++            command=lambda: self.open_req("Zam"),
++            width=150, height=45, fg_color="#8e44ad"
++        ).grid(row=0, column=1, padx=10)
++
++        # Alt butonlar
+         self.bottom_frame = ctk.CTkFrame(app, fg_color="transparent")
+         self.bottom_frame.pack(side="bottom", pady=30)
+ 
+@@ -101,7 +124,6 @@
+ 
+         ctk.CTkButton(win, text="Gönder", command=submit).pack(pady=10)
+ 
+-    # YENİ: Ayarlar Penceresi
+     def open_settings(self):
+         win = ctk.CTkToplevel(self.app)
+         win.title("Hesap Ayarları")
+@@ -111,7 +133,7 @@
+         ctk.CTkLabel(win, text="⚙️ Bilgileri Güncelle", font=("Helvetica", 18, "bold")).pack(pady=20)
+ 
+         user_entry = ctk.CTkEntry(win, placeholder_text="Yeni Kullanıcı Adı", width=250, height=40)
+-        user_entry.insert(0, self.user.username)  # Mevcut ismi otomatik doldur
++        user_entry.insert(0, self.user.username)
+         user_entry.pack(pady=10)
+ 
+         pass_entry = ctk.CTkEntry(win, placeholder_text="Yeni Şifre", show="*", width=250, height=40)
+@@ -128,15 +150,12 @@
+                 status_lbl.configure(text="Alanlar boş bırakılamaz!", text_color="#e74c3c")
+                 return
+ 
+-            # Veritabanını güncelle
+             success, msg = self.app.auth_service.update_credentials(self.user.user_id, new_user, new_pass)
+ 
+             if success:
+                 status_lbl.configure(text=msg, text_color="#2ecc71")
+-                self.user.username = new_user  # Kendi ekranındaki ismi anında değiştir
++                self.user.username = new_user
+                 self.header.configure(text=f"☕ Hoşgeldin {new_user.capitalize()}")
+-
+-                # 1.5 saniye sonra pencereyi otomatik kapat
+                 win.after(1500, win.destroy)
+             else:
+                 status_lbl.configure(text=msg, text_color="#e74c3c")
+Index: services/hr_service.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>class HRService:\r\n    def __init__(self, db_manager):\r\n        self.db = db_manager\r\n\r\n    def submit_application(self, name, role):\r\n        self.db.cursor.execute(\"INSERT INTO applications (name, desired_role, status) VALUES (?, ?, 'Bekliyor')\",\r\n                               (name, role))\r\n        self.db.conn.commit()\r\n\r\n    def get_pending_applications(self):\r\n        self.db.cursor.execute(\"SELECT * FROM applications WHERE status='Bekliyor'\")\r\n        return self.db.cursor.fetchall()\r\n\r\n    def process_application(self, app_id, status):\r\n        if status == \"Onaylandı\":\r\n            self.db.cursor.execute(\"SELECT name, desired_role FROM applications WHERE id=?\", (app_id,))\r\n            app_data = self.db.cursor.fetchone()\r\n            if app_data:\r\n                name, role = app_data\r\n                clean_name = name.lower().strip()\r\n                username = f\"{role.lower()} {clean_name}\"\r\n                password = f\"{clean_name}123\"  # OTOMATİK ŞİFRE (Örn: ahmet123)\r\n\r\n                try:\r\n                    self.db.cursor.execute(\r\n                        \"INSERT INTO users (username, password, role, salary, manager_id, off_day) VALUES (?, ?, ?, ?, ?, ?)\",\r\n                        (username, password, role, 20000.0, 2, \"Pazartesi\")\r\n                    )\r\n                except:\r\n                    pass\r\n\r\n        self.db.cursor.execute(\"UPDATE applications SET status=? WHERE id=?\", (status, app_id))\r\n        self.db.conn.commit()\r\n\r\n    def submit_internal_request(self, sender_name, request_type, detail):\r\n        self.db.cursor.execute(\r\n            \"INSERT INTO requests (sender_name, request_type, detail, status) VALUES (?, ?, ?, 'Bekliyor')\",\r\n            (sender_name, request_type, detail))\r\n        self.db.conn.commit()\r\n\r\n    def get_pending_requests(self):\r\n        self.db.cursor.execute(\"SELECT * FROM requests WHERE status='Bekliyor'\")\r\n        return self.db.cursor.fetchall()\r\n\r\n    def update_request_status(self, req_id, status):\r\n        self.db.cursor.execute(\"SELECT request_type FROM requests WHERE id=?\", (req_id,))\r\n        req_type = self.db.cursor.fetchone()[0]\r\n\r\n        final_status = status\r\n        if req_type == \"Zam\" and status == \"Onaylandı\":\r\n            final_status = \"Müdür Onayladı\"  # Zamsa patrona ilet\r\n\r\n        self.db.cursor.execute(\"UPDATE requests SET status=? WHERE id=?\", (final_status, req_id))\r\n        self.db.conn.commit()\r\n\r\n    # YENİ: Takvim ve İşten Çıkarma Fonksiyonları\r\n    def set_off_day_by_username(self, username, off_day):\r\n        self.db.cursor.execute(\"UPDATE users SET off_day=? WHERE username=?\", (off_day, username))\r\n        self.db.conn.commit()\r\n\r\n    def set_off_day_by_id(self, user_id, off_day):\r\n        self.db.cursor.execute(\"UPDATE users SET off_day=? WHERE id=?\", (off_day, user_id))\r\n        self.db.conn.commit()\r\n\r\n    def fire_employee(self, user_id):\r\n        self.db.cursor.execute(\"DELETE FROM users WHERE id=?\", (user_id,))\r\n        self.db.conn.commit()\r\n\r\n    def get_forwarded_raises(self):\r\n        self.db.cursor.execute(\"SELECT * FROM requests WHERE status='Müdür Onayladı' AND request_type='Zam'\")\r\n        return self.db.cursor.fetchall()
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/services/hr_service.py b/services/hr_service.py
+--- a/services/hr_service.py	(revision bbdf855e3cd66c3e823846c2aa525395c00790e2)
++++ b/services/hr_service.py	(date 1777551916063)
+@@ -68,4 +68,69 @@
+ 
+     def get_forwarded_raises(self):
+         self.db.cursor.execute("SELECT * FROM requests WHERE status='Müdür Onayladı' AND request_type='Zam'")
+-        return self.db.cursor.fetchall()
+\ No newline at end of file
++        return self.db.cursor.fetchall()
++
++    def final_approve_raise(self, req_id, percent):
++        # Talebi gönderen çalışanı bul
++        self.db.cursor.execute("SELECT sender_name FROM requests WHERE id=?", (req_id,))
++        sender = self.db.cursor.fetchone()[0]
++
++        # Mevcut maaşı al
++        self.db.cursor.execute("SELECT salary FROM users WHERE username=?", (sender,))
++        result = self.db.cursor.fetchone()
++
++        if result:
++            current_salary = result[0]
++            new_salary = round(current_salary * (1 + percent / 100))
++            self.db.cursor.execute("UPDATE users SET salary=? WHERE username=?", (new_salary, sender))
++
++        self.db.cursor.execute("UPDATE requests SET status='Kesin Onaylandı' WHERE id=?", (req_id,))
++        self.db.conn.commit()
++
++        return current_salary, new_salary  # UI'da göstermek için
++
++    def check_off_day_conflict(self, user_id, role, new_off_day):
++        # O roldeki toplam çalışan sayısı (kendisi dahil)
++        self.db.cursor.execute("""
++            SELECT COUNT(*) FROM users 
++            WHERE role=? AND role NOT IN ('Patron', 'Müdür')
++        """, (role,))
++        total_same_role = self.db.cursor.fetchone()[0]
++
++        # Rolde tek kişiyse izin günü hiç olamaz
++        if total_same_role <= 1:
++            return False, f"Sistemde tek {role} var, izin günü atanamaz!"
++
++        # Birden fazla kişi varsa — o gün çakışma kontrolü
++        self.db.cursor.execute("""
++            SELECT COUNT(*) FROM users 
++            WHERE role=? AND off_day=? AND id!=?
++        """, (role, new_off_day, user_id))
++        already_off_count = self.db.cursor.fetchone()[0]
++
++        working_that_day = (total_same_role - 1) - already_off_count  # -1: kendisi izinde
++
++        if working_that_day < 1:
++            return False, f"O gün tüm {role}lar izinli! Başka bir gün seçin."
++
++        return True, "OK"
++
++    def get_available_off_day(self, user_id, role):
++        """
++        O roldeki diğer çalışanların izin günlerine bakar,
++        çakışmayan ilk günü döndürür. Bulamazsa None döner.
++        """
++        days = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
++
++        # O roldeki diğer kişilerin izin günleri
++        self.db.cursor.execute(
++            "SELECT off_day FROM users WHERE role=? AND id!=?", (role, user_id)
++        )
++        taken_days = {row[0] for row in self.db.cursor.fetchall()}
++
++        # Çakışmayan ilk günü bul
++        for day in days:
++            if day not in taken_days:
++                return day
++
++        return None  # Tüm günler dolu
+\ No newline at end of file
+Index: gui/patron_dashboard.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import customtkinter as ctk\r\n\r\n\r\nclass PatronDashboard:\r\n    def __init__(self, app):\r\n        self.app = app\r\n\r\n        # Üst İstatistik Kartları Çerçevesi\r\n        self.stat_frame = ctk.CTkFrame(app, fg_color=\"transparent\")\r\n        self.stat_frame.pack(pady=15)  # Ortada durması için padx/fill kaldırdık\r\n\r\n        # Kartları çizen fonksiyonu çağırıyoruz\r\n        self.update_stat_cards()\r\n\r\n        # Sekmeler\r\n        self.tabview = ctk.CTkTabview(app)\r\n        self.tabview.pack(pady=5, padx=20, fill=\"both\", expand=True)\r\n\r\n        self.tab_staff = self.tabview.add(\"\uD83D\uDEE0\uFE0F Takvim & İşten Çıkarma\")\r\n        self.tab_salary = self.tabview.add(\"\uD83D\uDCB0 Maaş Yönetimi\")\r\n        self.tab_approvals = self.tabview.add(\"\uD83D\uDCE9 Müdür Onayları\")\r\n\r\n        self.load_staff_management()\r\n        self.load_salary_management()\r\n        self.load_manager_approvals()\r\n\r\n        self.logout_btn = ctk.CTkButton(app, text=\"Güvenli Çıkış\", command=self.app.show_login_screen,\r\n                                        fg_color=\"darkred\")\r\n        self.logout_btn.pack(side=\"bottom\", pady=10)\r\n\r\n    # YENİ: Kartları Dinamik Güncelleyen Fonksiyon\r\n    def update_stat_cards(self):\r\n        # Önce eski kartları temizle (Yenilenirken üst üste binmesin)\r\n        for widget in self.stat_frame.winfo_children():\r\n            widget.destroy()\r\n\r\n        # Veritabanına bağlanıp Patron hariç herkesi sayıyoruz\r\n        self.app.db_manager.cursor.execute(\"SELECT COUNT(*) FROM users WHERE role != 'Patron'\")\r\n        aktif_personel = self.app.db_manager.cursor.fetchone()[0]\r\n\r\n        # 3 Adet Kartı Ekrana Basıyoruz\r\n        self.create_stat_card(self.stat_frame, \"Günlük Kasa\", \"14.250 ₺\", \"#2ecc71\", 0)\r\n        self.create_stat_card(self.stat_frame, \"Müşteri Sayısı\", \"142\", \"#3498db\", 1)\r\n        self.create_stat_card(self.stat_frame, \"Aktif Çalışan\", f\"{aktif_personel}\", \"#f1c40f\", 2)\r\n\r\n    def create_stat_card(self, parent, title, value, color, col):\r\n        # Kartın tasarımını biraz daha oval ve şık yaptık\r\n        card = ctk.CTkFrame(parent, width=200, height=80, border_width=2, border_color=color, corner_radius=10)\r\n        card.grid(row=0, column=col, padx=15)\r\n        card.grid_propagate(False)\r\n        ctk.CTkLabel(card, text=title, font=(\"Helvetica\", 14, \"bold\"), text_color=\"gray\").pack(pady=(10, 0))\r\n        ctk.CTkLabel(card, text=value, font=(\"Helvetica\", 22, \"bold\"), text_color=color).pack()\r\n\r\n    def load_staff_management(self):\r\n        for widget in self.tab_staff.winfo_children(): widget.destroy()\r\n        scroll = ctk.CTkScrollableFrame(self.tab_staff, fg_color=\"transparent\")\r\n        scroll.pack(fill=\"both\", expand=True)\r\n\r\n        self.app.db_manager.cursor.execute(\"SELECT id, username, off_day, role FROM users WHERE role != 'Patron'\")\r\n        staff = self.app.db_manager.cursor.fetchall()\r\n\r\n        days = [\"Pazartesi\", \"Salı\", \"Çarşamba\", \"Perşembe\", \"Cuma\", \"Cumartesi\", \"Pazar\"]\r\n\r\n        for i, person in enumerate(staff, start=1):\r\n            p_id, name, current_off, role = person\r\n            ctk.CTkLabel(scroll, text=f\"{name.capitalize()}\", font=(\"Helvetica\", 14, \"bold\")).grid(row=i, column=0,\r\n                                                                                                   padx=20, pady=10)\r\n\r\n            combo = ctk.CTkComboBox(scroll, values=days, width=120)\r\n            combo.set(current_off)\r\n            combo.grid(row=i, column=1, padx=10)\r\n\r\n            ctk.CTkButton(scroll, text=\"Güncelle\", width=80, fg_color=\"#3498db\",\r\n                          command=lambda id=p_id, c=combo: self.update_day(id, c.get())).grid(row=i, column=2, padx=5)\r\n            ctk.CTkButton(scroll, text=\"Kov (İşten Çıkar)\", width=120, fg_color=\"#c0392b\",\r\n                          command=lambda id=p_id: self.fire_staff(id)).grid(row=i, column=3, padx=20)\r\n\r\n    def load_salary_management(self):\r\n        for widget in self.tab_salary.winfo_children(): widget.destroy()\r\n        scroll = ctk.CTkScrollableFrame(self.tab_salary, fg_color=\"transparent\")\r\n        scroll.pack(fill=\"both\", expand=True)\r\n\r\n        self.app.db_manager.cursor.execute(\"SELECT id, username, salary FROM users WHERE role != 'Patron'\")\r\n        staff = self.app.db_manager.cursor.fetchall()\r\n\r\n        for i, person in enumerate(staff, start=1):\r\n            p_id, name, salary = person\r\n            ctk.CTkLabel(scroll, text=f\"{name.capitalize()} - {salary} ₺\", font=(\"Helvetica\", 14, \"bold\")).grid(row=i,\r\n                                                                                                                column=0,\r\n                                                                                                                padx=20,\r\n                                                                                                                pady=10)\r\n            ctk.CTkButton(scroll, text=\"+ Zam Yap\", width=80, fg_color=\"#27ae60\",\r\n                          command=lambda id=p_id, s=salary: self.change_salary(id, s, 1000)).grid(row=i, column=1,\r\n                                                                                                  padx=5)\r\n            ctk.CTkButton(scroll, text=\"- Maaş Düşür\", width=80, fg_color=\"#e67e22\",\r\n                          command=lambda id=p_id, s=salary: self.change_salary(id, s, -1000)).grid(row=i, column=2,\r\n                                                                                                   padx=5)\r\n\r\n    def load_manager_approvals(self):\r\n        for widget in self.tab_approvals.winfo_children(): widget.destroy()\r\n        raises = self.app.hr_service.get_forwarded_raises()\r\n\r\n        for req in raises:\r\n            r_id, sender, r_type, detail, status = req\r\n            frame = ctk.CTkFrame(self.tab_approvals)\r\n            frame.pack(pady=5, padx=20, fill=\"x\")\r\n            ctk.CTkLabel(frame, text=f\"\uD83D\uDC64 {sender.capitalize()} - ZAM TALEBİ ({detail})\",\r\n                         font=(\"Helvetica\", 14, \"bold\")).pack(side=\"left\", padx=20, pady=10)\r\n            ctk.CTkButton(frame, text=\"Son Onayı Ver\", width=120, fg_color=\"#2ecc71\",\r\n                          command=lambda r=r_id: self.final_approve_raise(r)).pack(side=\"right\", padx=10)\r\n\r\n    def update_day(self, p_id, new_day):\r\n        self.app.hr_service.set_off_day_by_id(p_id, new_day)\r\n        self.load_staff_management()\r\n\r\n    def fire_staff(self, p_id):\r\n        self.app.hr_service.fire_employee(p_id)\r\n        self.load_staff_management()\r\n        self.load_salary_management()\r\n        self.update_stat_cards()  # YENİ: Biri kovulunca üstteki \"Aktif Çalışan\" sayısını anında düşürür\r\n\r\n    def change_salary(self, p_id, current_salary, amount):\r\n        new_salary = current_salary + amount\r\n        self.app.db_manager.cursor.execute(\"UPDATE users SET salary=? WHERE id=?\", (new_salary, p_id))\r\n        self.app.db_manager.conn.commit()\r\n        self.load_salary_management()\r\n\r\n    def final_approve_raise(self, req_id):\r\n        self.app.hr_service.update_request_status(req_id, \"Kesin Onaylandı\")\r\n        self.load_manager_approvals()
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/gui/patron_dashboard.py b/gui/patron_dashboard.py
+--- a/gui/patron_dashboard.py	(revision bbdf855e3cd66c3e823846c2aa525395c00790e2)
++++ b/gui/patron_dashboard.py	(date 1777551916021)
+@@ -63,15 +63,38 @@
+ 
+         for i, person in enumerate(staff, start=1):
+             p_id, name, current_off, role = person
+-            ctk.CTkLabel(scroll, text=f"{name.capitalize()}", font=("Helvetica", 14, "bold")).grid(row=i, column=0,
+-                                                                                                   padx=20, pady=10)
++
++            # Rolden kaç kişi var kontrol et
++            # Bununla değiştir:
++            if role in ('Patron', 'Müdür'):
++                role_count = 99  # Müdür ve patron için her zaman izin atanabilir
++            else:
++                self.app.db_manager.cursor.execute(
++                    "SELECT COUNT(*) FROM users WHERE role=?", (role,)
++                )
++                role_count = self.app.db_manager.cursor.fetchone()[0]
+ 
+-            combo = ctk.CTkComboBox(scroll, values=days, width=120)
+-            combo.set(current_off)
+-            combo.grid(row=i, column=1, padx=10)
++            ctk.CTkLabel(scroll, text=f"{name.capitalize()}", font=("Helvetica", 14, "bold")).grid(
++                row=i, column=0, padx=20, pady=10)
++
++            if role_count <= 1:
++                # Tek kişi — izin günü atanamaz, combo yerine kilitli etiket
++                ctk.CTkLabel(scroll, text="🔒 İzin Yok (Tek çalışan)",
++                             font=("Helvetica", 12), text_color="#e74c3c", width=180).grid(
++                    row=i, column=1, padx=10)
++
++                # Güncelle butonu da devre dışı
++                ctk.CTkButton(scroll, text="Güncelle", width=80, fg_color="gray", state="disabled").grid(
++                    row=i, column=2, padx=5)
++            else:
++                combo = ctk.CTkComboBox(scroll, values=days, width=120)
++                combo.set(current_off)
++                combo.grid(row=i, column=1, padx=10)
+ 
+-            ctk.CTkButton(scroll, text="Güncelle", width=80, fg_color="#3498db",
+-                          command=lambda id=p_id, c=combo: self.update_day(id, c.get())).grid(row=i, column=2, padx=5)
++                ctk.CTkButton(scroll, text="Güncelle", width=80, fg_color="#3498db",
++                              command=lambda id=p_id, c=combo: self.update_day(id, c.get())).grid(
++                    row=i, column=2, padx=5)
++
+             ctk.CTkButton(scroll, text="Kov (İşten Çıkar)", width=120, fg_color="#c0392b",
+                           command=lambda id=p_id: self.fire_staff(id)).grid(row=i, column=3, padx=20)
+ 
+@@ -100,6 +123,11 @@
+         for widget in self.tab_approvals.winfo_children(): widget.destroy()
+         raises = self.app.hr_service.get_forwarded_raises()
+ 
++        if not raises:
++            ctk.CTkLabel(self.tab_approvals, text="Bekleyen zam talebi yok.",
++                         font=("Helvetica", 14), text_color="gray").pack(pady=40)
++            return
++
+         for req in raises:
+             r_id, sender, r_type, detail, status = req
+             frame = ctk.CTkFrame(self.tab_approvals)
+@@ -107,9 +135,82 @@
+             ctk.CTkLabel(frame, text=f"👤 {sender.capitalize()} - ZAM TALEBİ ({detail})",
+                          font=("Helvetica", 14, "bold")).pack(side="left", padx=20, pady=10)
+             ctk.CTkButton(frame, text="Son Onayı Ver", width=120, fg_color="#2ecc71",
+-                          command=lambda r=r_id: self.final_approve_raise(r)).pack(side="right", padx=10)
++                          command=lambda r=r_id, s=sender: self.open_raise_popup(r, s)).pack(side="right", padx=10)
++
++    def open_raise_popup(self, req_id, sender):
++        win = ctk.CTkToplevel(self.app)
++        win.title("Zam Oranı Belirle")
++        win.geometry("320x230")
++        win.grab_set()
++
++        ctk.CTkLabel(win, text=f"💰 {sender.capitalize()} için zam oranı",
++                     font=("Helvetica", 15, "bold")).pack(pady=20)
++
++        entry_frame = ctk.CTkFrame(win, fg_color="transparent")
++        entry_frame.pack()
++
++        percent_entry = ctk.CTkEntry(entry_frame, placeholder_text="Örn: 10", width=180, height=40,
++                                     font=("Helvetica", 14))
++        percent_entry.pack(side="left", padx=5)
++        ctk.CTkLabel(entry_frame, text="%", font=("Helvetica", 18, "bold")).pack(side="left")
++
++        status_lbl = ctk.CTkLabel(win, text="", font=("Helvetica", 12, "bold"))
++        status_lbl.pack(pady=8)
++
++        def confirm():
++            raw = percent_entry.get().strip()
++
++            # Sadece sayı ve nokta kabul et
++            if not raw.replace(".", "", 1).isdigit():
++                status_lbl.configure(text="⚠️ Lütfen geçerli bir sayı girin!", text_color="#e74c3c")
++                return
++
++            percent = float(raw)
++
++            if percent <= 0 or percent > 100:
++                status_lbl.configure(text="⚠️ Oran 0 ile 100 arasında olmalı!", text_color="#e74c3c")
++                return
++
++            old_sal, new_sal = self.app.hr_service.final_approve_raise(req_id, percent)
++
++            status_lbl.configure(
++                text=f"✅ {old_sal:,.0f} ₺ → {new_sal:,.0f} ₺",
++                text_color="#2ecc71"
++            )
++            self.load_salary_management()  # Maaş sekmesini anında güncelle
++            self.load_manager_approvals()  # Listeyi temizle
++            win.after(1800, win.destroy)
++
++        ctk.CTkButton(win, text="Onayla ve Uygula", command=confirm,
++                      fg_color="#2ecc71", width=200, height=40,
++                      font=("Helvetica", 13, "bold")).pack(pady=10)
+ 
+     def update_day(self, p_id, new_day):
++        # Kişinin rolünü al
++        self.app.db_manager.cursor.execute("SELECT role FROM users WHERE id=?", (p_id,))
++        result = self.app.db_manager.cursor.fetchone()
++
++        if not result:
++            return
++
++        role = result[0]
++
++        # Çakışma kontrolü
++        ok, msg = self.app.hr_service.check_off_day_conflict(p_id, role, new_day)
++
++        if not ok:
++            # Uyarı popup'ı
++            win = ctk.CTkToplevel(self.app)
++            win.title("Uyarı")
++            win.geometry("320x160")
++            win.grab_set()
++            ctk.CTkLabel(win, text=f"⚠️ {msg}",
++                         font=("Helvetica", 13, "bold"),
++                         text_color="#e74c3c", wraplength=280).pack(pady=30)
++            ctk.CTkButton(win, text="Tamam", command=win.destroy,
++                          width=150, fg_color="#e74c3c").pack()
++            return
++
+         self.app.hr_service.set_off_day_by_id(p_id, new_day)
+         self.load_staff_management()
+ 
+Index: gui/manager_dashboard.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import customtkinter as ctk\r\n\r\n\r\nclass ManagerDashboard:\r\n    def __init__(self, app):\r\n        self.app = app\r\n        self.user = self.app.current_user\r\n\r\n        self.header = ctk.CTkLabel(app, text=f\"\uD83D\uDC54 Müdür Paneli - Hoşgeldin {self.user.username.capitalize()}\",\r\n                                   font=(\"Helvetica\", 28, \"bold\"))\r\n        self.header.pack(pady=(20, 10))\r\n\r\n        self.tabview = ctk.CTkTabview(app, width=800, height=450)\r\n        self.tabview.pack(pady=10, padx=20, fill=\"both\", expand=True)\r\n\r\n        self.tab_requests = self.tabview.add(\"\uD83D\uDCE8 İç Talepler (İzin/Zam)\")\r\n        self.tab_apps = self.tabview.add(\"\uD83D\uDC65 Yeni İş Başvuruları\")\r\n\r\n        self.load_requests()\r\n        self.load_applications()\r\n\r\n        self.logout_btn = ctk.CTkButton(app, text=\"Çıkış Yap\", command=self.app.show_login_screen, fg_color=\"darkred\",\r\n                                        width=150)\r\n        self.logout_btn.pack(side=\"bottom\", pady=20)\r\n\r\n    def load_requests(self):\r\n        for widget in self.tab_requests.winfo_children(): widget.destroy()\r\n        requests = self.app.hr_service.get_pending_requests()\r\n\r\n        scroll = ctk.CTkScrollableFrame(self.tab_requests, width=750, height=350, fg_color=\"transparent\")\r\n        scroll.pack(fill=\"both\", expand=True, pady=10)\r\n\r\n        for i, req in enumerate(requests, start=1):\r\n            req_id, sender, r_type, detail, status = req\r\n\r\n            ctk.CTkLabel(scroll, text=f\"Gönderen: {sender.capitalize()} | Tür: {r_type}\",\r\n                         font=(\"Helvetica\", 14, \"bold\"), text_color=\"#f39c12\").grid(row=i, column=0, padx=15, pady=15)\r\n\r\n            det_box = ctk.CTkTextbox(scroll, width=250, height=50, wrap=\"word\", fg_color=\"#2b2b2b\")\r\n            det_box.insert(\"0.0\", detail)\r\n            det_box.configure(state=\"disabled\")\r\n            det_box.grid(row=i, column=1, padx=15, pady=15)\r\n\r\n            ctk.CTkButton(scroll, text=\"Onayla ✔\", width=80, fg_color=\"#2ecc71\",\r\n                          command=lambda r=req_id, t=r_type, s=sender: self.process_request(r, t, s, \"Onaylandı\")).grid(\r\n                row=i, column=2, padx=5, pady=15)\r\n            ctk.CTkButton(scroll, text=\"Reddet ✖\", width=80, fg_color=\"#e74c3c\",\r\n                          command=lambda r=req_id, t=r_type, s=sender: self.process_request(r, t, s,\r\n                                                                                            \"Reddedildi\")).grid(row=i,\r\n                                                                                                                column=3,\r\n                                                                                                                padx=5,\r\n                                                                                                                pady=15)\r\n\r\n    def load_applications(self):\r\n        for widget in self.tab_apps.winfo_children(): widget.destroy()\r\n        apps = self.app.hr_service.get_pending_applications()\r\n\r\n        scroll = ctk.CTkScrollableFrame(self.tab_apps, width=750, height=350, fg_color=\"transparent\")\r\n        scroll.pack(fill=\"both\", expand=True, pady=10)\r\n\r\n        for i, app_data in enumerate(apps, start=1):\r\n            app_id, name, role, status = app_data\r\n            ctk.CTkLabel(scroll, text=f\"Aday: {name.capitalize()} | İstenen Rol: {role}\",\r\n                         font=(\"Helvetica\", 14, \"bold\")).grid(row=i, column=0, padx=30, pady=15)\r\n            ctk.CTkButton(scroll, text=\"İşe Al\", width=100, fg_color=\"#2ecc71\",\r\n                          command=lambda a=app_id: self.process_app(a, \"Onaylandı\")).grid(row=i, column=1, padx=10,\r\n                                                                                          pady=15)\r\n\r\n    def process_request(self, req_id, r_type, sender, status):\r\n        # EĞER İZİN ONAYLANIYORSA GÜN SEÇME EKRANI AÇILIR\r\n        if r_type == \"İzin\" and status == \"Onaylandı\":\r\n            win = ctk.CTkToplevel(self.app)\r\n            win.title(\"İzin Günü Belirle\")\r\n            win.geometry(\"300x200\")\r\n            win.grab_set()\r\n\r\n            ctk.CTkLabel(win, text=f\"{sender.capitalize()} hangi gün izinli olsun?\",\r\n                         font=(\"Helvetica\", 14, \"bold\")).pack(pady=20)\r\n\r\n            days = [\"Pazartesi\", \"Salı\", \"Çarşamba\", \"Perşembe\", \"Cuma\", \"Cumartesi\", \"Pazar\"]\r\n            combo = ctk.CTkComboBox(win, values=days)\r\n            combo.pack(pady=10)\r\n\r\n            def save_day():\r\n                self.app.hr_service.set_off_day_by_username(sender, combo.get())\r\n                self.app.hr_service.update_request_status(req_id, status)\r\n                self.load_requests()\r\n                win.destroy()\r\n\r\n            ctk.CTkButton(win, text=\"Kaydet\", command=save_day).pack(pady=10)\r\n        else:\r\n            self.app.hr_service.update_request_status(req_id, status)\r\n            self.load_requests()\r\n\r\n    def process_app(self, app_id, status):\r\n        self.app.hr_service.process_application(app_id, status)\r\n        self.load_applications()
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/gui/manager_dashboard.py b/gui/manager_dashboard.py
+--- a/gui/manager_dashboard.py	(revision bbdf855e3cd66c3e823846c2aa525395c00790e2)
++++ b/gui/manager_dashboard.py	(date 1777551916012)
+@@ -67,27 +67,60 @@
+                                                                                           pady=15)
+ 
+     def process_request(self, req_id, r_type, sender, status):
+-        # EĞER İZİN ONAYLANIYORSA GÜN SEÇME EKRANI AÇILIR
+         if r_type == "İzin" and status == "Onaylandı":
++
++            # Kullanıcı bilgilerini al
++            self.app.db_manager.cursor.execute(
++                "SELECT id, role FROM users WHERE username=?", (sender,)
++            )
++            result = self.app.db_manager.cursor.fetchone()
++
++            if not result:
++                return
++
++            user_id, role = result
++
++            # Tek çalışan kontrolü
++            ok, msg = self.app.hr_service.check_off_day_conflict(user_id, role, None)
++            # check_off_day_conflict'i biraz güncelleyeceğiz (aşağıda)
++
++            # Müsait gün bul
++            available_day = self.app.hr_service.get_available_off_day(user_id, role)
++
++            if not available_day:
++                # Hiç müsait gün yok — popup ile bildir
++                win = ctk.CTkToplevel(self.app)
++                win.title("Uyarı")
++                win.geometry("320x160")
++                win.grab_set()
++                ctk.CTkLabel(win, text=f"⚠️ {sender.capitalize()} için müsait izin günü bulunamadı!\nTüm günler dolu.",
++                             font=("Helvetica", 13, "bold"), text_color="#e74c3c", wraplength=280).pack(pady=30)
++                ctk.CTkButton(win, text="Tamam", command=win.destroy, width=150, fg_color="#e74c3c").pack()
++                return
++
++            # Müsait gün bulundu — onayla ve ata
+             win = ctk.CTkToplevel(self.app)
+-            win.title("İzin Günü Belirle")
+-            win.geometry("300x200")
++            win.title("İzin Onayı")
++            win.geometry("320x200")
+             win.grab_set()
+ 
+-            ctk.CTkLabel(win, text=f"{sender.capitalize()} hangi gün izinli olsun?",
++            ctk.CTkLabel(win,
++                         text=f"✅ {sender.capitalize()} için\notomatik izin günü belirlendi:",
+                          font=("Helvetica", 14, "bold")).pack(pady=20)
+ 
+-            days = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
+-            combo = ctk.CTkComboBox(win, values=days)
+-            combo.pack(pady=10)
++            ctk.CTkLabel(win, text=f"📅 {available_day}",
++                         font=("Helvetica", 22, "bold"), text_color="#2ecc71").pack()
+ 
+-            def save_day():
+-                self.app.hr_service.set_off_day_by_username(sender, combo.get())
++            def confirm():
++                self.app.hr_service.set_off_day_by_username(sender, available_day)
+                 self.app.hr_service.update_request_status(req_id, status)
+                 self.load_requests()
+                 win.destroy()
+ 
+-            ctk.CTkButton(win, text="Kaydet", command=save_day).pack(pady=10)
++            ctk.CTkButton(win, text="Onayla", command=confirm,
++                          fg_color="#2ecc71", width=200, height=40,
++                          font=("Helvetica", 13, "bold")).pack(pady=15)
++
+         else:
+             self.app.hr_service.update_request_status(req_id, status)
+             self.load_requests()
+Index: .idea/PersonnelManagementSystem.iml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+><?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n<module type=\"PYTHON_MODULE\" version=\"4\">\r\n  <component name=\"NewModuleRootManager\">\r\n    <content url=\"file://$MODULE_DIR$\">\r\n      <excludeFolder url=\"file://$MODULE_DIR$/.venv\" />\r\n    </content>\r\n    <orderEntry type=\"jdk\" jdkName=\"Python 3.13 (PersonnelManagementSystem)\" jdkType=\"Python SDK\" />\r\n    <orderEntry type=\"sourceFolder\" forTests=\"false\" />\r\n  </component>\r\n</module>
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/PersonnelManagementSystem.iml b/.idea/PersonnelManagementSystem.iml
+--- a/.idea/PersonnelManagementSystem.iml	(revision bbdf855e3cd66c3e823846c2aa525395c00790e2)
++++ b/.idea/PersonnelManagementSystem.iml	(date 1777551915757)
+@@ -4,7 +4,7 @@
+     <content url="file://$MODULE_DIR$">
+       <excludeFolder url="file://$MODULE_DIR$/.venv" />
+     </content>
+-    <orderEntry type="jdk" jdkName="Python 3.13 (PersonnelManagementSystem)" jdkType="Python SDK" />
++    <orderEntry type="jdk" jdkName="Python 3.14 (project)" jdkType="Python SDK" />
+     <orderEntry type="sourceFolder" forTests="false" />
+   </component>
+ </module>
+\ No newline at end of file
+Index: .idea/workspace.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+><?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n<project version=\"4\">\r\n  <component name=\"ChangeListManager\">\r\n    <list default=\"true\" id=\"d4d7db15-82ef-4b19-a8ec-6ac1ead54eff\" name=\"Changes\" comment=\"\">\r\n      <change afterPath=\"$PROJECT_DIR$/.idea/PersonnelManagementSystem.iml\" afterDir=\"false\" />\r\n      <change afterPath=\"$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml\" afterDir=\"false\" />\r\n      <change afterPath=\"$PROJECT_DIR$/.idea/misc.xml\" afterDir=\"false\" />\r\n      <change afterPath=\"$PROJECT_DIR$/.idea/modules.xml\" afterDir=\"false\" />\r\n      <change afterPath=\"$PROJECT_DIR$/.idea/vcs.xml\" afterDir=\"false\" />\r\n      <change afterPath=\"$PROJECT_DIR$/.idea/workspace.xml\" afterDir=\"false\" />\r\n      <change afterPath=\"$PROJECT_DIR$/database/db_manager.py\" afterDir=\"false\" />\r\n      <change afterPath=\"$PROJECT_DIR$/gui/app_gui.py\" afterDir=\"false\" />\r\n      <change afterPath=\"$PROJECT_DIR$/gui/apply_screen.py\" afterDir=\"false\" />\r\n      <change afterPath=\"$PROJECT_DIR$/gui/employee_dashboard.py\" afterDir=\"false\" />\r\n      <change afterPath=\"$PROJECT_DIR$/gui/login_screen.py\" afterDir=\"false\" />\r\n      <change afterPath=\"$PROJECT_DIR$/gui/manager_dashboard.py\" afterDir=\"false\" />\r\n      <change afterPath=\"$PROJECT_DIR$/gui/patron_dashboard.py\" afterDir=\"false\" />\r\n      <change afterPath=\"$PROJECT_DIR$/main.py\" afterDir=\"false\" />\r\n      <change afterPath=\"$PROJECT_DIR$/models/application.py\" afterDir=\"false\" />\r\n      <change afterPath=\"$PROJECT_DIR$/models/role.py\" afterDir=\"false\" />\r\n      <change afterPath=\"$PROJECT_DIR$/models/user.py\" afterDir=\"false\" />\r\n      <change afterPath=\"$PROJECT_DIR$/services/auth_service.py\" afterDir=\"false\" />\r\n      <change afterPath=\"$PROJECT_DIR$/services/hr_service.py\" afterDir=\"false\" />\r\n    </list>\r\n    <option name=\"SHOW_DIALOG\" value=\"false\" />\r\n    <option name=\"HIGHLIGHT_CONFLICTS\" value=\"true\" />\r\n    <option name=\"HIGHLIGHT_NON_ACTIVE_CHANGELIST\" value=\"false\" />\r\n    <option name=\"LAST_RESOLUTION\" value=\"IGNORE\" />\r\n  </component>\r\n  <component name=\"FileTemplateManagerImpl\">\r\n    <option name=\"RECENT_TEMPLATES\">\r\n      <list>\r\n        <option value=\"Python Script\" />\r\n      </list>\r\n    </option>\r\n  </component>\r\n  <component name=\"Git.Settings\">\r\n    <option name=\"RECENT_GIT_ROOT_PATH\" value=\"$PROJECT_DIR$\" />\r\n  </component>\r\n  <component name=\"ProjectColorInfo\">{\r\n  &quot;associatedIndex&quot;: 4,\r\n  &quot;fromUser&quot;: false\r\n}</component>\r\n  <component name=\"ProjectId\" id=\"3CwaoXyxo0SuYVe209Da9g88NQ3\" />\r\n  <component name=\"ProjectLevelVcsManager\">\r\n    <ConfirmationsSetting value=\"2\" id=\"Add\" />\r\n  </component>\r\n  <component name=\"ProjectViewState\">\r\n    <option name=\"hideEmptyMiddlePackages\" value=\"true\" />\r\n    <option name=\"showLibraryContents\" value=\"true\" />\r\n  </component>\r\n  <component name=\"PropertiesComponent\"><![CDATA[{\r\n  \"keyToString\": {\r\n    \"ModuleVcsDetector.initialDetectionPerformed\": \"true\",\r\n    \"Python.main.executor\": \"Run\",\r\n    \"RunOnceActivity.ShowReadmeOnStart\": \"true\",\r\n    \"RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252\": \"true\",\r\n    \"RunOnceActivity.git.unshallow\": \"true\",\r\n    \"RunOnceActivity.typescript.service.memoryLimit.init\": \"true\",\r\n    \"codeWithMe.voiceChat.enabledByDefault\": \"false\",\r\n    \"git-widget-placeholder\": \"master\",\r\n    \"nodejs_package_manager_path\": \"npm\",\r\n    \"vue.rearranger.settings.migration\": \"true\"\r\n  }\r\n}]]></component>\r\n  <component name=\"RunManager\">\r\n    <configuration name=\"main\" type=\"PythonConfigurationType\" factoryName=\"Python\" temporary=\"true\" nameIsGenerated=\"true\">\r\n      <module name=\"PersonnelManagementSystem\" />\r\n      <option name=\"ENV_FILES\" value=\"\" />\r\n      <option name=\"INTERPRETER_OPTIONS\" value=\"\" />\r\n      <option name=\"PARENT_ENVS\" value=\"true\" />\r\n      <envs>\r\n        <env name=\"PYTHONUNBUFFERED\" value=\"1\" />\r\n      </envs>\r\n      <option name=\"SDK_HOME\" value=\"\" />\r\n      <option name=\"WORKING_DIRECTORY\" value=\"$PROJECT_DIR$\" />\r\n      <option name=\"IS_MODULE_SDK\" value=\"true\" />\r\n      <option name=\"ADD_CONTENT_ROOTS\" value=\"true\" />\r\n      <option name=\"ADD_SOURCE_ROOTS\" value=\"true\" />\r\n      <option name=\"DEBUG_JUST_MY_CODE\" value=\"false\" />\r\n      <EXTENSION ID=\"PythonCoverageRunConfigurationExtension\" runner=\"coverage.py\" />\r\n      <option name=\"RUN_TOOL\" value=\"\" />\r\n      <option name=\"SCRIPT_NAME\" value=\"$PROJECT_DIR$/main.py\" />\r\n      <option name=\"PARAMETERS\" value=\"\" />\r\n      <option name=\"SHOW_COMMAND_LINE\" value=\"false\" />\r\n      <option name=\"EMULATE_TERMINAL\" value=\"false\" />\r\n      <option name=\"MODULE_MODE\" value=\"false\" />\r\n      <option name=\"REDIRECT_INPUT\" value=\"false\" />\r\n      <option name=\"INPUT_FILE\" value=\"\" />\r\n      <method v=\"2\" />\r\n    </configuration>\r\n    <recent_temporary>\r\n      <list>\r\n        <item itemvalue=\"Python.main\" />\r\n      </list>\r\n    </recent_temporary>\r\n  </component>\r\n  <component name=\"SharedIndexes\">\r\n    <attachedChunks>\r\n      <set>\r\n        <option value=\"bundled-python-sdk-b63d5a1f7c97-b61e75351b1f-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-261.22158.340\" />\r\n      </set>\r\n    </attachedChunks>\r\n  </component>\r\n  <component name=\"TaskManager\">\r\n    <task active=\"true\" id=\"Default\" summary=\"Default task\">\r\n      <changelist id=\"d4d7db15-82ef-4b19-a8ec-6ac1ead54eff\" name=\"Changes\" comment=\"\" />\r\n      <created>1777299261437</created>\r\n      <option name=\"number\" value=\"Default\" />\r\n      <option name=\"presentableId\" value=\"Default\" />\r\n      <updated>1777299261437</updated>\r\n      <workItem from=\"1777299262454\" duration=\"7691000\" />\r\n      <workItem from=\"1777380856181\" duration=\"1894000\" />\r\n    </task>\r\n    <servers />\r\n  </component>\r\n  <component name=\"TypeScriptGeneratedFilesManager\">\r\n    <option name=\"version\" value=\"3\" />\r\n  </component>\r\n  <component name=\"com.intellij.coverage.CoverageDataManagerImpl\">\r\n    <SUITE FILE_PATH=\"coverage/PersonnelManagementSystem$main.coverage\" NAME=\"main Coverage Results\" MODIFIED=\"1777381734102\" SOURCE_PROVIDER=\"com.intellij.coverage.DefaultCoverageFileProvider\" RUNNER=\"coverage.py\" COVERAGE_BY_TEST_ENABLED=\"false\" COVERAGE_TRACING_ENABLED=\"false\" WORKING_DIRECTORY=\"$PROJECT_DIR$\" />\r\n  </component>\r\n</project>
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/workspace.xml b/.idea/workspace.xml
+--- a/.idea/workspace.xml	(revision bbdf855e3cd66c3e823846c2aa525395c00790e2)
++++ b/.idea/workspace.xml	(date 1777551947034)
+@@ -1,26 +1,18 @@
+ <?xml version="1.0" encoding="UTF-8"?>
+ <project version="4">
++  <component name="AutoImportSettings">
++    <option name="autoReloadType" value="ALL" />
++  </component>
+   <component name="ChangeListManager">
+     <list default="true" id="d4d7db15-82ef-4b19-a8ec-6ac1ead54eff" name="Changes" comment="">
+-      <change afterPath="$PROJECT_DIR$/.idea/PersonnelManagementSystem.iml" afterDir="false" />
+-      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" afterDir="false" />
+-      <change afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+-      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+-      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+-      <change afterPath="$PROJECT_DIR$/database/db_manager.py" afterDir="false" />
+-      <change afterPath="$PROJECT_DIR$/gui/app_gui.py" afterDir="false" />
+-      <change afterPath="$PROJECT_DIR$/gui/apply_screen.py" afterDir="false" />
+-      <change afterPath="$PROJECT_DIR$/gui/employee_dashboard.py" afterDir="false" />
+-      <change afterPath="$PROJECT_DIR$/gui/login_screen.py" afterDir="false" />
+-      <change afterPath="$PROJECT_DIR$/gui/manager_dashboard.py" afterDir="false" />
+-      <change afterPath="$PROJECT_DIR$/gui/patron_dashboard.py" afterDir="false" />
+-      <change afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
+-      <change afterPath="$PROJECT_DIR$/models/application.py" afterDir="false" />
+-      <change afterPath="$PROJECT_DIR$/models/role.py" afterDir="false" />
+-      <change afterPath="$PROJECT_DIR$/models/user.py" afterDir="false" />
+-      <change afterPath="$PROJECT_DIR$/services/auth_service.py" afterDir="false" />
+-      <change afterPath="$PROJECT_DIR$/services/hr_service.py" afterDir="false" />
++      <change beforePath="$PROJECT_DIR$/.idea/PersonnelManagementSystem.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/PersonnelManagementSystem.iml" afterDir="false" />
++      <change beforePath="$PROJECT_DIR$/.idea/dataSources/data_sources_history.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources/data_sources_history.xml" afterDir="false" />
++      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
++      <change beforePath="$PROJECT_DIR$/cafe_system.db" beforeDir="false" afterPath="$PROJECT_DIR$/cafe_system.db" afterDir="false" />
++      <change beforePath="$PROJECT_DIR$/gui/employee_dashboard.py" beforeDir="false" afterPath="$PROJECT_DIR$/gui/employee_dashboard.py" afterDir="false" />
++      <change beforePath="$PROJECT_DIR$/gui/manager_dashboard.py" beforeDir="false" afterPath="$PROJECT_DIR$/gui/manager_dashboard.py" afterDir="false" />
++      <change beforePath="$PROJECT_DIR$/gui/patron_dashboard.py" beforeDir="false" afterPath="$PROJECT_DIR$/gui/patron_dashboard.py" afterDir="false" />
++      <change beforePath="$PROJECT_DIR$/services/hr_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/hr_service.py" afterDir="false" />
+     </list>
+     <option name="SHOW_DIALOG" value="false" />
+     <option name="HIGHLIGHT_CONFLICTS" value="true" />
+@@ -49,20 +41,26 @@
+     <option name="hideEmptyMiddlePackages" value="true" />
+     <option name="showLibraryContents" value="true" />
+   </component>
+-  <component name="PropertiesComponent"><![CDATA[{
+-  "keyToString": {
+-    "ModuleVcsDetector.initialDetectionPerformed": "true",
+-    "Python.main.executor": "Run",
+-    "RunOnceActivity.ShowReadmeOnStart": "true",
+-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+-    "RunOnceActivity.git.unshallow": "true",
+-    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+-    "codeWithMe.voiceChat.enabledByDefault": "false",
+-    "git-widget-placeholder": "master",
+-    "nodejs_package_manager_path": "npm",
+-    "vue.rearranger.settings.migration": "true"
++  <component name="PropertiesComponent">{
++  &quot;keyToString&quot;: {
++    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
++    &quot;Python.main.executor&quot;: &quot;Run&quot;,
++    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
++    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
++    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
++    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
++    &quot;codeWithMe.voiceChat.enabledByDefault&quot;: &quot;false&quot;,
++    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
++    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
++    &quot;last_opened_file_path&quot;: &quot;C:/Users/Victus/project&quot;,
++    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
++    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
++    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
++    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
++    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
++    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+   }
+-}]]></component>
++}</component>
+   <component name="RunManager">
+     <configuration name="main" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+       <module name="PersonnelManagementSystem" />
+@@ -111,6 +109,11 @@
+       <updated>1777299261437</updated>
+       <workItem from="1777299262454" duration="7691000" />
+       <workItem from="1777380856181" duration="1894000" />
++      <workItem from="1777385965946" duration="153000" />
++      <workItem from="1777452283141" duration="6429000" />
++      <workItem from="1777530912868" duration="428000" />
++      <workItem from="1777538486150" duration="638000" />
++      <workItem from="1777550702828" duration="720000" />
+     </task>
+     <servers />
+   </component>
+@@ -119,5 +122,6 @@
+   </component>
+   <component name="com.intellij.coverage.CoverageDataManagerImpl">
+     <SUITE FILE_PATH="coverage/PersonnelManagementSystem$main.coverage" NAME="main Coverage Results" MODIFIED="1777381734102" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
++    <SUITE FILE_PATH="coverage/project$main.coverage" NAME="main Coverage Results" MODIFIED="1777550719716" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+   </component>
+ </project>
+\ No newline at end of file
