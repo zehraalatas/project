@@ -8,274 +8,284 @@ class EmployeeDashboard:
         self.app = app
         self.user = self.app.current_user
 
-        # Kullanıcının çalışma programını model üzerinden yönetiyoruz
+        # Managing work schedule via model
         self.user_schedule = Schedule(self.user.user_id, self.user.off_day)
 
-        # --- Üst Bilgi Paneli ---
-        self.header = ctk.CTkLabel(app, text=f"☕ Hoşgeldin {self.user.username.capitalize()}",
-                                   font=("Helvetica", 28, "bold"))
+        # --- Top Info Panel ---
+        # capitalize() used for name formatting
+        self.header = ctk.CTkLabel(app, text=f"☕ Welcome {self.user.username.capitalize()}",
+                                   font=("Arial", 26, "bold"))
         self.header.pack(pady=(30, 10))
 
-        self.role_label = ctk.CTkLabel(app, text=f"Pozisyon: {self.user.role} | Maaş: {self.user.salary} ₺",
-                                       font=("Helvetica", 16), text_color="gray")
-        self.role_label.pack(pady=5)
+        # Using a simple string for role and salary info
+        display_text = f"Role: {self.user.role} | Salary: {self.user.salary} ₺"
+        self.role_info = ctk.CTkLabel(app, text=display_text,
+                                      font=("Arial", 14), text_color="gray")
+        self.role_info.pack(pady=5)
 
-        # --- Ana Aksiyon Butonları ---
-        # Mesai butonu kaldırıldı, sadece bildirimler kaldı.
-        self.notif_btn = ctk.CTkButton(app, text="🔔 Bildirimler", command=self.show_notifications,
-                                       width=300, height=40, fg_color="#2c3e50",
-                                       font=("Helvetica", 14))
-        self.notif_btn.pack(pady=10)
+        # --- Main Action Buttons ---
+        self.btn_notif = ctk.CTkButton(app, text="🔔 Notifications", command=self.show_notifications,
+                                       width=280, height=40, fg_color="#2c3e50")
+        self.btn_notif.pack(pady=10)
 
-        self.board_btn = ctk.CTkButton(app, text="📝 Departman Panosu", command=self.open_notice_board,
-                                       width=300, height=40, fg_color="#8e44ad", font=("Helvetica", 14))
-        self.board_btn.pack(pady=10)
+        self.btn_board = ctk.CTkButton(app, text="📝 Department Board", command=self.open_notice_board,
+                                       width=280, height=40, fg_color="#8e44ad")
+        self.btn_board.pack(pady=10)
 
-        # --- Otomatik Durum Kaydı (Shifts) ---
-        # Bugünün ismini Schedule modelindeki listeye göre alıyoruz
-        today_name = self.user_schedule.DAYS[datetime.datetime.today().weekday()]
+        # --- Automatic Status Check ---
+        # Get today's name from our list in Schedule model
+        day_index = datetime.datetime.today().weekday()
+        today_name = self.user_schedule.DAYS[day_index]
 
-        # Durumu belirle: Eğer bugün izin günü ise "İzinli", değilse "Çalışıyor"
-        current_status = "İzinli" if today_name.lower() == self.user.off_day.lower() else "Çalışıyor"
+        # Logic: If today is off day, status is 'Off', else 'Working'
+        if today_name.lower() == self.user.off_day.lower():
+            current_status = "Off Day"
+        else:
+            current_status = "Working"
 
-        # HRService üzerinden sessizce veritabanına log atıyoruz
+        # Logging status to database via HR service
         self.app.hr_service.log_status(self.user.user_id, self.user.username, current_status)
 
-        # --- Takvim Bölümü ---
-        self.schedule_frame = ctk.CTkFrame(app, corner_radius=10)
-        self.schedule_frame.pack(pady=20, padx=40, fill="x")
+        # --- Weekly Schedule Section ---
+        self.calendar_frame = ctk.CTkFrame(app, corner_radius=10)
+        self.calendar_frame.pack(pady=20, padx=40, fill="x")
 
-        ctk.CTkLabel(self.schedule_frame, text="📅 Çalışma Programın", font=("Helvetica", 16, "bold")).pack(pady=10)
+        ctk.CTkLabel(self.calendar_frame, text="📅 Your Weekly Schedule", font=("Arial", 16, "bold")).pack(pady=10)
 
-        self.table_frame = ctk.CTkFrame(self.schedule_frame, fg_color="transparent")
-        self.table_frame.pack(pady=10)
+        self.grid_frame = ctk.CTkFrame(self.calendar_frame, fg_color="transparent")
+        self.grid_frame.pack(pady=10)
 
-        # Roldeki kişi sayısını kontrol et (İzin kısıtlaması için)
+        # Get total staff for this role to check permission
         self.app.db_manager.cursor.execute(
             "SELECT COUNT(*) FROM users WHERE role=?", (self.user.role,)
         )
-        role_count = self.app.db_manager.cursor.fetchone()[0]
+        staff_count = self.app.db_manager.cursor.fetchone()[0]
 
-        # Takvim döngüsü
+        # Calendar Loop - Creating boxes for each day
         for i, day in enumerate(self.user_schedule.DAYS):
-            short_day = day[:3]
-            ctk.CTkLabel(self.table_frame, text=short_day, font=("Helvetica", 14, "bold"), width=80).grid(
+            short_name = day[:3]  # Mon, Tue, etc.
+            ctk.CTkLabel(self.grid_frame, text=short_name, font=("Arial", 12, "bold"), width=70).grid(
                 row=0, column=i, padx=5, pady=5)
 
-            # Mantık: Tek çalışan ise her gün "İzin Yok", değilse OFF kontrolü
-            if role_count <= 1:
-                status_text = "İzin Yok"
-                color = "#7f8c8d"  # Gri (Kilitli/Yetkisiz)
+            # Determine color and text based on role count and off day
+            if staff_count <= 1:
+                box_text = "No Off"
+                box_color = "#7f8c8d"
             elif day == self.user.off_day:
-                status_text = "OFF"
-                color = "#e74c3c"  # Kırmızı (İzinli)
+                box_text = "OFF"
+                box_color = "#e74c3c"
             else:
-                status_text = "Çalışıyor"
-                color = "#2ecc71"  # Yeşil (Çalışma)
+                box_text = "Work"
+                box_color = "#2ecc71"
 
-            box = ctk.CTkFrame(self.table_frame, width=80, height=60, fg_color=color, corner_radius=8)
-            box.grid(row=1, column=i, padx=5, pady=5)
-            box.grid_propagate(False)
+            day_box = ctk.CTkFrame(self.grid_frame, width=75, height=55, fg_color=box_color, corner_radius=5)
+            day_box.grid(row=1, column=i, padx=5, pady=5)
+            day_box.grid_propagate(False)
 
-            lbl = ctk.CTkLabel(box, text=status_text, font=("Helvetica", 12, "bold"), text_color="white")
-            lbl.place(relx=0.5, rely=0.5, anchor="center")
+            status_lbl = ctk.CTkLabel(day_box, text=box_text, font=("Arial", 11, "bold"), text_color="white")
+            status_lbl.place(relx=0.5, rely=0.5, anchor="center")
 
-        # --- Talep Butonları ---
-        self.btn_frame = ctk.CTkFrame(app, fg_color="transparent")
-        self.btn_frame.pack(pady=10)
+        # --- Request Buttons ---
+        self.request_area = ctk.CTkFrame(app, fg_color="transparent")
+        self.request_area.pack(pady=10)
 
-        if role_count <= 1:
+        if staff_count <= 1:
             ctk.CTkButton(
-                self.btn_frame, text="İzin İste (Kilitli)",
-                width=180, height=45, fg_color="gray", state="disabled"
+                self.request_area, text="Day Off (Locked)",
+                width=160, height=40, fg_color="gray", state="disabled"
             ).grid(row=0, column=0, padx=10)
         else:
-            ctk.CTkButton(self.btn_frame, text="İzin İste", command=lambda: self.open_req("İzin"),
-                          width=150, height=45, fg_color="#f39c12").grid(row=0, column=0, padx=10)
+            ctk.CTkButton(self.request_area, text="Request Off", command=lambda: self.make_request("Day Off"),
+                          width=140, height=40, fg_color="#f39c12").grid(row=0, column=0, padx=10)
 
-        ctk.CTkButton(self.btn_frame, text="Zam İste", command=lambda: self.open_req("Zam"),
-                      width=150, height=45, fg_color="#8e44ad").grid(row=0, column=1, padx=10)
+        ctk.CTkButton(self.request_area, text="Request Raise", command=lambda: self.make_request("Salary Raise"),
+                      width=140, height=40, fg_color="#8e44ad").grid(row=0, column=1, padx=10)
 
-        # --- Alt Menü ---
-        self.bottom_frame = ctk.CTkFrame(app, fg_color="transparent")
-        self.bottom_frame.pack(side="bottom", pady=30)
+        # --- Bottom Menu ---
+        self.footer = ctk.CTkFrame(app, fg_color="transparent")
+        self.footer.pack(side="bottom", pady=25)
 
-        self.settings_btn = ctk.CTkButton(self.bottom_frame, text="⚙️ Ayarlar", command=self.open_settings,
-                                          fg_color="#34495e", hover_color="#2c3e50", width=120)
-        self.settings_btn.grid(row=0, column=0, padx=10)
+        self.btn_settings = ctk.CTkButton(self.footer, text="⚙️ Settings", command=self.open_settings,
+                                          fg_color="#34495e", width=110)
+        self.btn_settings.grid(row=0, column=0, padx=10)
 
-        self.logout_btn = ctk.CTkButton(self.bottom_frame, text="Çıkış Yap", command=self.app.show_login_screen,
-                                        fg_color="darkred", width=120)
-        self.logout_btn.grid(row=0, column=1, padx=10)
+        self.btn_logout = ctk.CTkButton(self.footer, text="Logout", command=self.app.show_login_screen,
+                                        fg_color="darkred", width=110)
+        self.btn_logout.grid(row=0, column=1, padx=10)
 
         self.refresh_notif_badge()
 
-    # Bildirim metotları ve ayarlar metotları aynı kalıyor...
     def refresh_notif_badge(self):
-        unread = self.app.notification_service.get_unread(self.user.username)
-        if len(unread) > 0:
-            self.notif_btn.configure(text=f"🔔 Bildirimler ({len(unread)})", fg_color="#e67e22")
+        """Updates the notification button text if there are new messages"""
+        unread_list = self.app.notification_service.get_unread(self.user.username)
+        if len(unread_list) > 0:
+            self.btn_notif.configure(text=f"🔔 Notifications ({len(unread_list)})", fg_color="#e67e22")
         else:
-            self.notif_btn.configure(text="🔔 Bildirimler", fg_color="#2c3e50")
+            self.btn_notif.configure(text="🔔 Notifications", fg_color="#2c3e50")
 
     def show_notifications(self):
-        unread = self.app.notification_service.get_unread(self.user.username)
-        win = ctk.CTkToplevel(self.app)
-        win.title("Bildirimler")
-        win.geometry("350x300")
-        win.grab_set()
+        """Opens a window to see all unread messages"""
+        unread_items = self.app.notification_service.get_unread(self.user.username)
+        notif_window = ctk.CTkToplevel(self.app)
+        notif_window.title("Your Notifications")
+        notif_window.geometry("350x300")
+        notif_window.grab_set()
 
-        if not unread:
-            ctk.CTkLabel(win, text="Okunmamış bildirim yok 📭", font=("Helvetica", 14), text_color="gray").pack(pady=40)
+        if not unread_items:
+            ctk.CTkLabel(notif_window, text="No new messages 📭", text_color="gray").pack(pady=40)
         else:
-            for notif in unread:
-                ctk.CTkLabel(win, text=f"• {notif.message}", font=("Helvetica", 13), wraplength=300).pack(pady=8,
-                                                                                                          padx=20)
+            for item in unread_items:
+                ctk.CTkLabel(notif_window, text=f"• {item.message}", wraplength=300).pack(pady=8, padx=20)
 
-            def mark_read():
+            def mark_as_read():
                 self.app.notification_service.mark_all_read(self.user.username)
                 self.refresh_notif_badge()
-                win.destroy()
+                notif_window.destroy()
 
-            ctk.CTkButton(win, text="Tümünü Okundu İşaretle", command=mark_read, fg_color="#3498db").pack(pady=15)
+            ctk.CTkButton(notif_window, text="Mark All as Read", command=mark_as_read, fg_color="#3498db").pack(pady=15)
 
-    def open_req(self, req_type):
-        win = ctk.CTkToplevel(self.app)
-        win.title(f"{req_type} Talebi")
-        win.geometry("300x200")
-        win.grab_set()
-        win.attributes("-topmost", True)  # Pencerenin arkaya kaçmasını engeller
+    def make_request(self, req_type):
+        """Handles leave and salary increase requests"""
+        req_win = ctk.CTkToplevel(self.app)
+        req_win.title(f"{req_type} Request")
+        req_win.geometry("300x220")
+        req_win.grab_set()
+        req_win.attributes("-topmost", True)
 
-        input_widget = None
+        user_input = None
 
-        # Eğer talep İZİN ise ComboBox (Açılır Liste) göster
-        if req_type == "İzin":
-            ctk.CTkLabel(win, text="Hangi gün için izin istiyorsunuz?", font=("Helvetica", 14, "bold")).pack(
-                pady=(25, 10))
-            days = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
-            input_widget = ctk.CTkComboBox(win, values=days, width=180, state="readonly")
-            input_widget.set("Gün Seçiniz")
-            input_widget.pack(pady=10)
-
-        # Eğer talep ZAM ise Entry (Yazı Alanı) göster
+        if req_type == "Day Off":
+            ctk.CTkLabel(req_win, text="Select day for leave:", font=("Arial", 13, "bold")).pack(pady=(20, 5))
+            # List for ComboBox
+            days_list = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+            user_input = ctk.CTkComboBox(req_win, values=days_list, width=180, state="readonly")
+            user_input.set("Select Day")
+            user_input.pack(pady=10)
         else:
-            ctk.CTkLabel(win, text="Zam talebinizi giriniz (Örn: %15):", font=("Helvetica", 14, "bold")).pack(
-                pady=(25, 10))
-            input_widget = ctk.CTkEntry(win, placeholder_text="Açıklama...", width=200)
-            input_widget.pack(pady=10)
+            ctk.CTkLabel(req_win, text="Enter details (e.g. 10%):", font=("Arial", 13, "bold")).pack(pady=(20, 5))
+            user_input = ctk.CTkEntry(req_win, placeholder_text="Explain here...", width=200)
+            user_input.pack(pady=10)
 
-        def submit():
-            detail = input_widget.get()
+        def submit_to_manager():
+            # Dictionary to pack request details (Lesson Topic: Dictionary)
+            detail = user_input.get()
 
-            # Boş veya hatalı gönderimi engelle
-            if req_type == "İzin" and detail == "Gün Seçiniz":
+            if req_type == "Day Off" and detail == "Select Day":
                 return
             if not detail.strip():
                 return
 
-            # Talebi HRService üzerinden gönder (Müdür onayına gider)
-            self.app.hr_service.submit_internal_request(self.user.username, req_type, detail)
+            request_data = {
+                "user": self.user.username,
+                "type": req_type,
+                "info": detail
+            }
 
-            # Personele kendi ekranında bildirim göster
-            self.app.notification_service.send(self.user.username,
-                                               f"✅ {req_type} talebiniz değerlendirilmesi için Müdür'e iletildi!")
+            # Send to HR service
+            self.app.hr_service.submit_internal_request(request_data["user"], request_data["type"],
+                                                        request_data["info"])
 
-            win.destroy()
+            # Local notification
+            msg = f"✅ Your {req_type} request has been sent to Manager!"
+            self.app.notification_service.send(self.user.username, msg)
 
-        # Buton rengini talebe göre ayarla (İzin ise turuncu, Zam ise mor)
-        btn_color = "#f39c12" if req_type == "İzin" else "#8e44ad"
-        ctk.CTkButton(win, text="Talebi Gönder", command=submit, fg_color=btn_color,
-                      font=("Helvetica", 13, "bold")).pack(pady=15)
+            req_win.destroy()
+
+        color = "#f39c12" if req_type == "Day Off" else "#8e44ad"
+        ctk.CTkButton(req_win, text="Send Request", command=submit_to_manager, fg_color=color).pack(pady=15)
+
     def open_settings(self):
-        # Ayarlar penceresini oluştur
-        win = ctk.CTkToplevel(self.app)
-        win.title("Hesap Ayarları")
-        win.geometry("350x400")
-        win.grab_set() # Pencere kapanmadan ana ekrana dokunulmasın
+        """Window to update username and password"""
+        set_win = ctk.CTkToplevel(self.app)
+        set_win.title("Account Settings")
+        set_win.geometry("350x400")
+        set_win.grab_set()
 
-        ctk.CTkLabel(win, text="⚙️ Bilgileri Güncelle", font=("Helvetica", 18, "bold")).pack(pady=20)
+        ctk.CTkLabel(set_win, text="⚙️ Update Credentials", font=("Arial", 18, "bold")).pack(pady=20)
 
-        # Mevcut kullanıcı adını otomatik doldur
-        user_entry = ctk.CTkEntry(win, placeholder_text="Yeni Kullanıcı Adı", width=250, height=40)
-        user_entry.insert(0, self.user.username)
-        user_entry.pack(pady=10)
+        name_entry = ctk.CTkEntry(set_win, placeholder_text="New Username", width=250)
+        name_entry.insert(0, self.user.username)
+        name_entry.pack(pady=10)
 
-        # Şifre alanı
-        pass_entry = ctk.CTkEntry(win, placeholder_text="Yeni Şifre", show="*", width=250, height=40)
+        pass_entry = ctk.CTkEntry(set_win, placeholder_text="New Password", show="*", width=250)
         pass_entry.pack(pady=10)
 
-        # Uyarı/Başarı mesajı etiketi
-        status_lbl = ctk.CTkLabel(win, text="", font=("Helvetica", 12, "bold"))
-        status_lbl.pack(pady=5)
+        msg_label = ctk.CTkLabel(set_win, text="", font=("Arial", 11, "bold"))
+        msg_label.pack(pady=5)
 
-        def save_settings():
-            new_user = user_entry.get().strip()
-            new_pass = pass_entry.get().strip()
+        def save_changes():
+            u = name_entry.get().strip()
+            p = pass_entry.get().strip()
 
-            # Boş alan kontrolü
-            if not new_user or not new_pass:
-                status_lbl.configure(text="Alanlar boş bırakılamaz!", text_color="#e74c3c")
+            if not u or not p:
+                msg_label.configure(text="Fields cannot be empty!", text_color="#e74c3c")
                 return
 
-            # AuthService üzerinden validation ve kayıt işlemini başlat
-            # Artık AuthService içindeki validator (en az 3 karakter kullanıcı adı, 6 karakter şifre) kuralları geçerli.
-            success, msg = self.app.auth_service.update_credentials(self.user.user_id, new_user, new_pass)
+            # Update via auth service
+            done, info = self.app.auth_service.update_credentials(self.user.user_id, u, p)
 
-            if success:
-                status_lbl.configure(text=msg, text_color="#2ecc71")
-                # Localdeki kullanıcı adını ve başlığı anlık güncelle
-                self.user.username = new_user
-                self.header.configure(text=f"☕ Hoşgeldin {new_user.capitalize()}")
-                win.after(1500, win.destroy) # 1.5 saniye sonra pencereyi kapat
+            if done:
+                msg_label.configure(text=info, text_color="#2ecc71")
+                self.user.username = u
+                self.header.configure(text=f"☕ Welcome {u.capitalize()}")
+                set_win.after(1500, set_win.destroy)
             else:
-                status_lbl.configure(text=msg, text_color="#e74c3c")
+                msg_label.configure(text=info, text_color="#e74c3c")
 
-        ctk.CTkButton(win, text="Kaydet", command=save_settings,
-                      fg_color="#3498db", width=200, height=40).pack(pady=15)
-
+        ctk.CTkButton(set_win, text="Save Settings", command=save_changes, fg_color="#3498db").pack(pady=15)
 
     def open_notice_board(self):
-        win = ctk.CTkToplevel(self.app)
-        win.title(f"{self.user.role} Panosu")
-        win.geometry("450x500")
-        win.grab_set()
+        """Shared board for department communication"""
+        board_win = ctk.CTkToplevel(self.app)
+        board_win.title(f"{self.user.role} Board")
+        board_win.geometry("450x500")
+        board_win.grab_set()
 
-        ctk.CTkLabel(win, text=f"📝 {self.user.role} İletişim Panosu", font=("Helvetica", 18, "bold")).pack(pady=10)
+        ctk.CTkLabel(board_win, text=f"📝 {self.user.role} Communication Board", font=("Arial", 18, "bold")).pack(
+            pady=10)
 
-        # Mesajların listeleneceği alan
-        scroll = ctk.CTkScrollableFrame(win, fg_color="#2c3e50")
-        scroll.pack(fill="both", expand=True, padx=10, pady=10)
+        # Scrollable area for notes
+        note_scroll = ctk.CTkScrollableFrame(board_win, fg_color="#2c3e50")
+        note_scroll.pack(fill="both", expand=True, padx=10, pady=10)
 
-        def load_notes():
-            for w in scroll.winfo_children(): w.destroy()
-            notes = self.app.note_service.get_notes_for_user(self.user.role)
-            if not notes:
-                ctk.CTkLabel(scroll, text="Henüz bir not yok.", text_color="gray").pack(pady=20)
-            for note in notes:
-                # Kendi yazdıkları yeşilimtrak, başkalarınınki mavimsi olabilir vs.
-                msg_frame = ctk.CTkFrame(scroll, fg_color="#34495e", corner_radius=8)
-                msg_frame.pack(fill="x", pady=5, padx=5)
-                ctk.CTkLabel(msg_frame, text=f"👤 {note.sender_name} ({note.date})", font=("Helvetica", 11, "bold"),
-                             text_color="#f1c40f", anchor="w").pack(fill="x", padx=10, pady=(5, 0))
-                ctk.CTkLabel(msg_frame, text=note.content, font=("Helvetica", 13), anchor="w", wraplength=380).pack(
-                    fill="x", padx=10, pady=(0, 5))
+        def load_board_messages():
+            # Function to refresh the notes
+            for child in note_scroll.winfo_children():
+                child.destroy()
 
-        load_notes()
+            # Fetching notes based on role (using a list of objects)
+            all_notes = self.app.note_service.get_notes_for_user(self.user.role)
 
-        # Yeni Mesaj Yazma Alanı
-        input_frame = ctk.CTkFrame(win, fg_color="transparent")
-        input_frame.pack(fill="x", padx=10, pady=10)
+            if not all_notes:
+                ctk.CTkLabel(note_scroll, text="No notes yet.", text_color="gray").pack(pady=20)
+            else:
+                for n in all_notes:
+                    frame = ctk.CTkFrame(note_scroll, fg_color="#34495e", corner_radius=5)
+                    frame.pack(fill="x", pady=5, padx=5)
 
-        msg_entry = ctk.CTkEntry(input_frame, placeholder_text="Buraya not yazın...", width=320)
-        msg_entry.pack(side="left", padx=5)
+                    header_text = f"👤 {n.sender_name} ({n.date})"
+                    ctk.CTkLabel(frame, text=header_text, font=("Arial", 10, "bold"),
+                                 text_color="#f1c40f", anchor="w").pack(fill="x", padx=10, pady=(5, 0))
 
-        def send_note():
-            content = msg_entry.get().strip()
-            if content:
-                # Kendi rolüne mesaj atıyor (Örn: Barista ise Barista grubuna)
-                self.app.note_service.add_note(self.user.username, self.user.role, self.user.role, content)
-                msg_entry.delete(0, 'end')
-                load_notes()  # Panoyu yenile
+                    ctk.CTkLabel(frame, text=n.content, font=("Arial", 12), anchor="w", wraplength=380).pack(
+                        fill="x", padx=10, pady=(0, 5))
 
-        ctk.CTkButton(input_frame, text="Gönder", width=80, command=send_note, fg_color="#2ecc71").pack(side="right",
-                                                                                                        padx=5)
+        load_board_messages()
+
+        # Write new note area
+        write_frame = ctk.CTkFrame(board_win, fg_color="transparent")
+        write_frame.pack(fill="x", padx=10, pady=10)
+
+        note_input = ctk.CTkEntry(write_frame, placeholder_text="Type a note...", width=300)
+        note_input.pack(side="left", padx=5)
+
+        def post_note():
+            txt = note_input.get().strip()
+            if txt:
+                # Add note using our service
+                self.app.note_service.add_note(self.user.username, self.user.role, self.user.role, txt)
+                note_input.delete(0, 'end')
+                load_board_messages()
+
+        ctk.CTkButton(write_frame, text="Post", width=80, command=post_note, fg_color="#2ecc71").pack(side="right",
+                                                                                                      padx=5)

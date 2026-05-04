@@ -1,4 +1,5 @@
 import customtkinter as ctk
+# Model imports
 from models.application import JobApplication
 from models.leave_request import LeaveRequest
 from models.raise_request import RaiseRequest
@@ -9,229 +10,222 @@ class ManagerDashboard:
         self.app = app
         self.user = self.app.current_user
 
-        self.header = ctk.CTkLabel(app, text=f"👔 Müdür Paneli - Hoşgeldin {self.user.username.capitalize()}",
-                                   font=("Helvetica", 28, "bold"))
+        # Header with capitalized username
+        self.header = ctk.CTkLabel(app, text=f"👔 Manager Panel - Welcome {self.user.username.capitalize()}",
+                                   font=("Arial", 26, "bold"))
         self.header.pack(pady=(20, 10))
 
-        # Sekmeleri Oluştur
-        self.tabview = ctk.CTkTabview(app, width=800, height=450)
-        self.tabview.pack(pady=10, padx=20, fill="both", expand=True)
+        # Tabs for different sections
+        self.tabs = ctk.CTkTabview(app, width=800, height=450)
+        self.tabs.pack(pady=10, padx=20, fill="both", expand=True)
 
-        # Eski satırı bul ve şununla değiştir:
-        self.tab_my_schedule = self.tabview.add("👤 Profil ")
-        self.tab_requests = self.tabview.add("📨 İç Talepler (İzin/Zam)")
+        self.profile_tab = self.tabs.add("👤 My Profile")
+        self.request_tab = self.tabs.add("📨 Staff Requests")
 
+        # Load initial data
+        self.load_staff_requests()
+        self.load_manager_profile()
 
-        # Verileri Yükle
-        self.load_requests()
-        self.load_my_schedule()
+        # Logout button
+        self.btn_logout = ctk.CTkButton(app, text="Logout", command=self.app.show_login_screen,
+                                        fg_color="darkred", width=150)
+        self.btn_logout.pack(side="bottom", pady=20)
 
-        self.logout_btn = ctk.CTkButton(app, text="Çıkış Yap", command=self.app.show_login_screen, fg_color="darkred",
-                                        width=150)
-        self.logout_btn.pack(side="bottom", pady=20)
+    def load_staff_requests(self):
+        """Lists pending requests from staff for the Manager to review"""
+        for widget in self.request_tab.winfo_children():
+            widget.destroy()
 
-    def load_requests(self):
-        for widget in self.tab_requests.winfo_children(): widget.destroy()
+        # Updated to 'Pending Manager' to match HRService logic
+        query = "SELECT id, sender_name, request_type, detail, status FROM requests WHERE status='Pending Manager'"
+        self.app.db_manager.cursor.execute(query)
+        all_requests = self.app.db_manager.cursor.fetchall()
 
-        # Sadece "Müdür Onayı Bekliyor" statüsündeki İzin ve Zam taleplerini çek
-        self.app.db_manager.cursor.execute(
-            "SELECT id, sender_name, request_type, detail, status FROM requests WHERE status='Müdür Onayı Bekliyor'"
-        )
-        requests = self.app.db_manager.cursor.fetchall()
-
-        if not requests:
-            ctk.CTkLabel(self.tab_requests, text="Bekleyen personel talebi yok.",
-                         font=("Helvetica", 14), text_color="gray").pack(pady=40)
+        if not all_requests:
+            ctk.CTkLabel(self.request_tab, text="No pending requests found.",
+                         font=("Arial", 14), text_color="gray").pack(pady=40)
             return
 
-        scroll = ctk.CTkScrollableFrame(self.tab_requests, fg_color="transparent")
-        scroll.pack(fill="both", expand=True, pady=10)
+        scroll_view = ctk.CTkScrollableFrame(self.request_tab, fg_color="transparent")
+        scroll_view.pack(fill="both", expand=True, pady=10)
 
-        for req in requests:
-            r_id, sender, r_type, detail, status = req
-            frame = ctk.CTkFrame(scroll)
-            frame.pack(pady=5, padx=20, fill="x")
+        # Mapping request types for UI display
+        type_labels = {"Leave": "Leave Request", "Salary": "Salary Raise"}
 
-            # Görsel ikonlar ekleyelim
-            icon = "📅" if r_type == "İzin" else "💰"
+        for req in all_requests:
+            r_id, sender, r_type, info, status = req
+            row_frame = ctk.CTkFrame(scroll_view)
+            row_frame.pack(pady=5, padx=20, fill="x")
 
-            ctk.CTkLabel(frame, text=f"{icon} {sender.capitalize()} - {r_type} ({detail})",
-                         font=("Helvetica", 14, "bold")).pack(side="left", padx=20, pady=10)
+            # Updated check for English types
+            icon = "📅" if r_type == "Leave" else "💰"
+            eng_type = type_labels.get(r_type, r_type)
+            display_text = f"{icon} {sender.capitalize()} - {eng_type} ({info})"
 
-            # Butonlar: Onaylarsa Patron'a düşer, Redderse kapanır.
-            ctk.CTkButton(frame, text="Patrona İlet ✅", width=120, fg_color="#3498db",
-                          command=lambda r=r_id, s=sender: self.process_request(r, "Onaylandı", s)).pack(side="right",
-                                                                                                         padx=10)
+            ctk.CTkLabel(row_frame, text=display_text, font=("Arial", 13, "bold")).pack(side="left", padx=20, pady=10)
 
-            ctk.CTkButton(frame, text="Reddet ❌", width=100, fg_color="#e74c3c",
-                          command=lambda r=r_id, s=sender: self.process_request(r, "Reddedildi", s)).pack(side="right",
-                                                                                                          padx=10)
+            # Actions - Sending "Approved" or "Rejected" directly to HRService
+            ctk.CTkButton(row_frame, text="Approve ✅", width=110, fg_color="#3498db",
+                          command=lambda i=r_id, s=sender: self.update_request(i, "Approved", s)).pack(side="right", padx=10)
 
-    def process_request(self, req_id, status, sender):
-        # HRService içindeki mantığı 'Müdür' rolüyle çağırıyoruz
-        res = self.app.hr_service.update_request_status(req_id, status, "Müdür")
+            ctk.CTkButton(row_frame, text="Reject ❌", width=90, fg_color="#e74c3c",
+                          command=lambda i=r_id, s=sender: self.update_request(i, "Rejected", s)).pack(side="right", padx=10)
 
-        if res:
-            # İşlem başarılıysa bildirim gönder
-            if status == "Onaylandı":
-                self.app.notification_service.send(sender,
-                                                   "Talebiniz Müdür tarafından onaylandı, Patron onayı bekleniyor. ⏳")
+    def update_request(self, req_id, new_status, employee_name):
+        """Handles the decision and sends notification based on new English schema"""
+        # We now send "Approved"/"Rejected" directly. HRService handles 'Pending Boss' logic.
+        success = self.app.hr_service.update_request_status(req_id, new_status, "Manager")
+
+        if success:
+            if new_status == "Approved":
+                msg = "Approved by Manager, waiting for Boss approval. ⏳"
             else:
-                self.app.notification_service.send(sender, "Talebiniz Müdür tarafından reddedildi. ❌")
+                msg = "Your request was rejected by the Manager. ❌"
 
-        # Ekranı tazele
-        self.load_requests()
+            self.app.notification_service.send(employee_name, msg)
 
-    def load_my_schedule(self):
-        for widget in self.tab_my_schedule.winfo_children(): widget.destroy()
+        self.load_staff_requests()
 
-        # 1. Kullanıcı bilgilerini çek
-        self.app.db_manager.cursor.execute("SELECT role, salary, off_day FROM users WHERE username=?", (self.user.username,))
-        result = self.app.db_manager.cursor.fetchone()
-        role, salary, off_day = result if result else ("Müdür", 0, "Belirsiz")
+    def load_manager_profile(self):
+        """Loads personal info and schedule for the logged-in Manager"""
+        for widget in self.profile_tab.winfo_children():
+            widget.destroy()
 
-        # 2. Üst Bilgi (Pozisyon ve Maaş - Resimdeki gibi gri ve ortalanmış)
-        info_label = ctk.CTkLabel(self.tab_my_schedule, text=f"Pozisyon: {role} | Maaş: {salary:,.1f} ₺", font=("Helvetica", 16), text_color="gray")
-        info_label.pack(pady=(10, 20))
+        self.app.db_manager.cursor.execute("SELECT role, salary, off_day FROM users WHERE username=?",
+                                           (self.user.username,))
+        data = self.app.db_manager.cursor.fetchone()
+        u_role, u_salary, u_off = data if data else ("Manager", 0, "Monday")
 
-        # 3. Bildirimler Butonu (Resimdeki geniş, koyu mavi buton)
-        notif_btn = ctk.CTkButton(self.tab_my_schedule, text="🔔 Bildirimler", fg_color="#34495e", hover_color="#2c3e50", width=400, height=40)
-        notif_btn.pack(pady=10)
+        # Info labels
+        ctk.CTkLabel(self.profile_tab, text=f"Role: {u_role} | Salary: {u_salary:,.0f} ₺",
+                     font=("Arial", 15), text_color="gray").pack(pady=(10, 20))
 
-        self.board_btn = ctk.CTkButton(self.tab_my_schedule, text="📝 Tüm Departmanların Panosu",
-                                       command=self.open_notice_board, fg_color="#8e44ad",
-                                       hover_color="#732d91", width=400, height=40)
-        self.board_btn.pack(pady=10)
+        # Action Buttons
+        ctk.CTkButton(self.profile_tab, text="🔔 Notifications", fg_color="#34495e", width=380, height=35).pack(pady=5)
 
-        # 4. Çalışma Programı Başlığı
-        schedule_label = ctk.CTkLabel(self.tab_my_schedule, text="📅 Çalışma Programın", font=("Helvetica", 18, "bold"))
-        schedule_label.pack(pady=(30, 20))
+        self.btn_board = ctk.CTkButton(self.profile_tab, text="📝 Department Communication",
+                                       command=self.open_all_boards, fg_color="#8e44ad", width=380, height=35)
+        self.btn_board.pack(pady=5)
 
-        # 5. Günler Kutucukları (İşte resimdeki o yan yana diziliş)
-        days_frame = ctk.CTkFrame(self.tab_my_schedule, fg_color="transparent")
-        days_frame.pack(pady=10)
+        # Work Schedule
+        ctk.CTkLabel(self.profile_tab, text="📅 Your Work Schedule", font=("Arial", 18, "bold")).pack(pady=(25, 15))
 
-        gunler_kisa = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cts", "Paz"]
-        gunler_uzun = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
+        days_box = ctk.CTkFrame(self.profile_tab, fg_color="transparent")
+        days_box.pack(pady=5)
 
-        for i in range(7):
-            day_col = ctk.CTkFrame(days_frame, fg_color="transparent")
-            day_col.grid(row=0, column=i, padx=10)
+        short_days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
-            # Üstteki gün ismi
-            ctk.CTkLabel(day_col, text=gunler_kisa[i], font=("Helvetica", 14, "bold")).pack(pady=(0, 10))
+        for idx, d_name in enumerate(day_names):
+            column = ctk.CTkFrame(days_box, fg_color="transparent")
+            column.grid(row=0, column=idx, padx=8)
 
-            # Alttaki renkli kutu (İzin gününe denk geliyorsa kırmızı OFF, değilse yeşil Çalışıyor)
-            is_off = (gunler_uzun[i] == off_day)
-            box_color = "#e74c3c" if is_off else "#2ecc71"
-            box_text = "OFF" if is_off else "Çalışıyor"
+            ctk.CTkLabel(column, text=short_days[idx], font=("Arial", 12, "bold")).pack(pady=5)
 
-            box = ctk.CTkFrame(day_col, fg_color=box_color, width=90, height=80, corner_radius=10)
-            box.pack_propagate(False) # Çerçevenin içindeki yazıya göre küçülmesini engeller, boyutunu sabit tutar
-            box.pack()
+            is_holiday = (d_name == u_off)
+            status_color = "#e74c3c" if is_holiday else "#2ecc71"
+            status_text = "OFF" if is_holiday else "Work"
 
-            ctk.CTkLabel(box, text=box_text, font=("Helvetica", 14, "bold"), text_color="white").place(relx=0.5, rely=0.5, anchor="center")
+            day_card = ctk.CTkFrame(column, fg_color=status_color, width=85, height=75, corner_radius=8)
+            day_card.pack_propagate(False)
+            day_card.pack()
 
-        # 6. Alt Butonlar (İzin İste ve Zam İste)
-        btn_frame = ctk.CTkFrame(self.tab_my_schedule, fg_color="transparent")
-        btn_frame.pack(pady=40)
+            ctk.CTkLabel(day_card, text=status_text, font=("Arial", 13, "bold"), text_color="white").place(relx=0.5, rely=0.5, anchor="center")
 
-        # Turuncu/Sarı İzin Butonu
-        izin_btn = ctk.CTkButton(btn_frame, text="İzin İste", fg_color="#f39c12", hover_color="#d68910",
-                                 width=160, height=45, font=("Helvetica", 14, "bold"), command=self.open_leave_popup)
-        izin_btn.pack(side="left", padx=20)
+        # Request Buttons for Manager's own needs
+        action_row = ctk.CTkFrame(self.profile_tab, fg_color="transparent")
+        action_row.pack(pady=35)
 
-        # Mor Zam Butonu
-        zam_btn = ctk.CTkButton(btn_frame, text="Zam İste", fg_color="#8e44ad", hover_color="#732d91",
-                                width=160, height=45, font=("Helvetica", 14, "bold"), command=self.open_raise_popup)
-        zam_btn.pack(side="left", padx=20)
+        ctk.CTkButton(action_row, text="Request Leave", fg_color="#f39c12", width=150, height=40,
+                      command=self.open_leave_dialog).pack(side="left", padx=15)
 
+        ctk.CTkButton(action_row, text="Request Raise", fg_color="#8e44ad", width=150, height=40,
+                      command=self.open_salary_dialog).pack(side="left", padx=15)
 
-    # --- YENİ EKLENEN POPUP FONKSİYONLARI ---
-    # (Butonlara basılınca giriş alanını sayfa içinde değil, tatlı bir pencere olarak açar)
+    def open_leave_dialog(self):
+        """Popup for the Manager to request their own leave"""
+        dialog = ctk.CTkToplevel(self.app)
+        dialog.title("Leave Request")
+        dialog.geometry("300x200")
+        dialog.grab_set()
+        dialog.attributes("-topmost", True)
 
-    def open_leave_popup(self):
-        # Özel bir küçük pencere (Toplevel) oluşturuyoruz
-        popup = ctk.CTkToplevel(self.app)
-        popup.title("İzin Talebi")
-        popup.geometry("300x200")
-        popup.grab_set() # Kullanıcının sadece bu pencereye odaklanmasını sağlar
-        popup.attributes("-topmost", True) # Pencereyi en üstte tutar
+        ctk.CTkLabel(dialog, text="Select day for leave:", font=("Arial", 13, "bold")).pack(pady=(25, 5))
 
-        ctk.CTkLabel(popup, text="Hangi gün için izin istiyorsunuz?", font=("Helvetica", 14, "bold")).pack(pady=(25, 10))
+        eng_days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        selector = ctk.CTkComboBox(dialog, values=eng_days, width=180, state="readonly")
+        selector.set("Select Day")
+        selector.pack(pady=10)
 
-        # Günlerin listesi
-        days = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
-        combo = ctk.CTkComboBox(popup, values=days, width=180, state="readonly") # Sadece listeden seçilebilir
-        combo.set("Gün Seçiniz")
-        combo.pack(pady=10)
+        def confirm():
+            val = selector.get()
+            if val != "Select Day":
+                # Manager's request goes to 'Pending Boss' status via service
+                self.send_to_boss("Leave", val)
+                dialog.destroy()
 
-        # Onay Butonunun İşlevi
-        def submit():
-            secilen_gun = combo.get()
-            if secilen_gun != "Gün Seçiniz":
-                self.send_manager_request("İzin", secilen_gun)
-                popup.destroy() # Talebi gönderip pencereyi kapatır
+        ctk.CTkButton(dialog, text="Submit Request", fg_color="#f39c12", command=confirm).pack(pady=15)
 
-        ctk.CTkButton(popup, text="Talebi Gönder", fg_color="#f39c12", hover_color="#d68910", font=("Helvetica", 13, "bold"), command=submit).pack(pady=15)
-    def open_raise_popup(self):
-        dialog = ctk.CTkInputDialog(text="Zam talebinizi giriniz:\n(Örn: %15 veya 5000 TL)", title="Zam Talebi")
-        istek = dialog.get_input()
-        if istek:
-            self.send_manager_request("Zam", istek)
+    def open_salary_dialog(self):
+        """Input dialog for the Manager to request their own raise"""
+        dialog = ctk.CTkInputDialog(text="Enter raise details (e.g. 10%):", title="Salary Request")
+        info = dialog.get_input()
+        if info:
+            self.send_to_boss("Salary", info)
 
-    def send_manager_request(self, req_type, detail):
-        self.app.hr_service.submit_manager_request(self.user.username, req_type, detail)
-        self.app.notification_service.send(self.user.username, f"✅ {req_type} talebiniz değerlendirilmesi için Patron'a iletildi!")
-        print(f"Başarılı: {req_type} talebi ({detail}) patrona iletildi.")
-        print(f"Başarılı: {req_type} talebi ({detail}) patrona iletildi.")
+    def send_to_boss(self, r_type, detail):
+        """Forwards Manager's requests directly to the Boss"""
+        self.app.hr_service.submit_manager_request(self.user.username, r_type, detail)
+        self.app.notification_service.send(self.user.username, f"✅ Your {r_type} request sent to the Boss!")
 
-    def open_notice_board(self):
-        win = ctk.CTkToplevel(self.app)
-        win.title("Genel Pano (Yönetici)")
-        win.geometry("500x550")
-        win.grab_set()
+    def open_all_boards(self):
+        """Board to communicate with all department staff"""
+        board_win = ctk.CTkToplevel(self.app)
+        board_win.title("Global Communication Board")
+        board_win.geometry("500x550")
+        board_win.grab_set()
 
-        ctk.CTkLabel(win, text="📝 Tüm Departmanların İletişim Panosu", font=("Helvetica", 18, "bold")).pack(pady=10)
+        ctk.CTkLabel(board_win, text="📝 Departmental Communication", font=("Arial", 18, "bold")).pack(pady=10)
 
-        scroll = ctk.CTkScrollableFrame(win, fg_color="#2c3e50")
-        scroll.pack(fill="both", expand=True, padx=10, pady=10)
+        note_scroll = ctk.CTkScrollableFrame(board_win, fg_color="#2c3e50")
+        note_scroll.pack(fill="both", expand=True, padx=10, pady=10)
 
-        def load_notes():
-            for w in scroll.winfo_children(): w.destroy()
-            notes = self.app.note_service.get_notes_for_user(self.user.role)
-            if not notes:
-                ctk.CTkLabel(scroll, text="Henüz bir not yok.", text_color="gray").pack(pady=20)
-            for note in notes:
-                msg_frame = ctk.CTkFrame(scroll, fg_color="#34495e", corner_radius=8)
-                msg_frame.pack(fill="x", pady=5, padx=5)
-                # Yöneticilere özel: Mesajın kime gittiğini (Hedef) de gösteriyoruz
-                header_text = f"👤 {note.sender_name} ➔ [Hedef: {note.target_role}] ({note.date})"
-                ctk.CTkLabel(msg_frame, text=header_text, font=("Helvetica", 11, "bold"), text_color="#f1c40f",
-                             anchor="w").pack(fill="x", padx=10, pady=(5, 0))
-                ctk.CTkLabel(msg_frame, text=note.content, font=("Helvetica", 13), anchor="w", wraplength=430).pack(
-                    fill="x", padx=10, pady=(0, 5))
+        def refresh():
+            for child in note_scroll.winfo_children():
+                child.destroy()
 
-        load_notes()
+            all_notes = self.app.note_service.get_notes_for_user(self.user.role)
+            if not all_notes:
+                ctk.CTkLabel(note_scroll, text="No notes posted yet.", text_color="gray").pack(pady=20)
+            else:
+                for n in all_notes:
+                    card = ctk.CTkFrame(note_scroll, fg_color="#34495e", corner_radius=8)
+                    card.pack(fill="x", pady=5, padx=5)
+                    header_txt = f"👤 {n.sender_name} ➔ [{n.target_role}] ({n.date})"
+                    ctk.CTkLabel(card, text=header_txt, font=("Arial", 10, "bold"), text_color="#f1c40f",
+                                 anchor="w").pack(fill="x", padx=10, pady=(5, 0))
+                    ctk.CTkLabel(card, text=n.content, font=("Arial", 12), anchor="w", wraplength=430).pack(fill="x",
+                                                                                                            padx=10,
+                                                                                                            pady=(0, 5))
 
-        input_frame = ctk.CTkFrame(win, fg_color="transparent")
-        input_frame.pack(fill="x", padx=10, pady=10)
+        refresh()
 
-        # Yöneticiler mesaj atarken hedef departmanı seçsin
-        target_combo = ctk.CTkComboBox(input_frame, values=["Garson", "Barista", "Kasiyer", "Aşçı", "Temizlikçi"],
-                                       width=110)
-        target_combo.pack(side="left", padx=5)
+        bottom_bar = ctk.CTkFrame(board_win, fg_color="transparent")
+        bottom_bar.pack(fill="x", padx=10, pady=10)
 
-        msg_entry = ctk.CTkEntry(input_frame, placeholder_text="Not yazın...", width=250)
-        msg_entry.pack(side="left", padx=5)
+        depts = ["Waiter", "Barista", "Cashier", "Chef", "Cleaner"]
+        dept_selector = ctk.CTkComboBox(bottom_bar, values=depts, width=110)
+        dept_selector.pack(side="left", padx=5)
 
-        def send_note():
-            content = msg_entry.get().strip()
-            target = target_combo.get()
+        note_input = ctk.CTkEntry(bottom_bar, placeholder_text="Type message...", width=250)
+        note_input.pack(side="left", padx=5)
+
+        def post():
+            content = note_input.get().strip()
+            target = dept_selector.get()
             if content:
                 self.app.note_service.add_note(self.user.username, self.user.role, target, content)
-                msg_entry.delete(0, 'end')
-                load_notes()
+                note_input.delete(0, 'end')
+                refresh()
 
-        ctk.CTkButton(input_frame, text="Gönder", width=70, command=send_note, fg_color="#2ecc71").pack(side="right",
-                                                                                                        padx=5)
+        ctk.CTkButton(bottom_bar, text="Post", width=70, command=post, fg_color="#2ecc71").pack(side="right", padx=5)

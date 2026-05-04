@@ -24,7 +24,7 @@ def main():
                  validation_service=validation, notification_service=notification,
                  report_service=report, salary_service=salary,note_service=note)
     app.mainloop()
-
+    db.close_connection()
 
 if __name__ == "__main__":
     main()

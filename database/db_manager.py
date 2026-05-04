@@ -1,13 +1,17 @@
 import sqlite3
 
+
 class DatabaseManager:
     def __init__(self, db_name="cafe_system.db"):
+        # Create connection to the SQLite database
         self.conn = sqlite3.connect(db_name)
         self.cursor = self.conn.cursor()
-        self.create_tables()
+        self.setup_database()
 
-    def create_tables(self):
-        # Kullanıcılar Tablosu (off_day sütunu eklendi)
+    def setup_database(self):
+        """Initializes all tables and default data"""
+
+        # 1. Users Table: Stores all staff info
         self.cursor.execute("""
                             CREATE TABLE IF NOT EXISTS users
                             (
@@ -32,6 +36,7 @@ class DatabaseManager:
                             )
                             """)
 
+        # 2. Applications Table: For job seekers
         self.cursor.execute("""
                             CREATE TABLE IF NOT EXISTS applications
                             (
@@ -49,6 +54,7 @@ class DatabaseManager:
                             )
                             """)
 
+        # 3. Requests Table: For staff leave and salary raise requests
         self.cursor.execute("""
                             CREATE TABLE IF NOT EXISTS requests
                             (
@@ -68,7 +74,7 @@ class DatabaseManager:
                             )
                             """)
 
-        # YENİ: Mesai Kayıtları Tablosu (Kimin hangi gün çalıştığını tutar)
+        # 4. Shifts Table: Tracks daily working status
         self.cursor.execute("""
                             CREATE TABLE IF NOT EXISTS shifts
                             (
@@ -84,29 +90,34 @@ class DatabaseManager:
                                 date
                                 TEXT,
                                 status
-                                TEXT
+                                TEXT,
+                                hours
+                                INTEGER
+                                DEFAULT
+                                8
                             )
                             """)
 
+        # --- SEEDING DEFAULT USERS ---
+        # Using a List of Tuples for easy management (Lesson Topic: Collections)
+        default_accounts = [
+            ('admin', 'admin123', 'Boss', 500000.0, None, 'Monday'),
+            ('manager1', 'manager123', 'Manager', 35000.0, None, 'Monday'),
+            ('waiter1', 'waiter123', 'Waiter', 20000.0, 2, 'Monday')
+        ]
 
-        # Varsayılan Hesaplar (İzin günleri Pazartesi olarak ayarlandı)
-        self.cursor.execute("SELECT * FROM users WHERE role='Patron'")
-        if not self.cursor.fetchone():
-            self.cursor.execute("INSERT INTO users (username, password, role, salary, manager_id, off_day) VALUES (?, ?, ?, ?, ?, ?)", ('admin', 'admin123', 'Patron', 0.0, None, 'Pazartesi'))
+        for user_data in default_accounts:
+            # We check by username to prevent 'UNIQUE constraint failed' errors
+            self.cursor.execute("SELECT * FROM users WHERE username=?", (user_data[0],))
+            if not self.cursor.fetchone():
+                self.cursor.execute("""
+                                    INSERT INTO users (username, password, role, salary, manager_id, off_day)
+                                    VALUES (?, ?, ?, ?, ?, ?)""", user_data)
 
-        self.cursor.execute("SELECT * FROM users WHERE role='Müdür'")
-        if not self.cursor.fetchone():
-            self.cursor.execute("INSERT INTO users (username, password, role, salary, manager_id, off_day) VALUES (?, ?, ?, ?, ?, ?)", ('mudur', 'mudur123', 'Müdür', 35000.0, None, 'Pazartesi'))
-
-        self.cursor.execute("SELECT * FROM users WHERE role='Garson'")
-        if not self.cursor.fetchone():
-            self.cursor.execute("INSERT INTO users (username, password, role, salary, manager_id, off_day) VALUES (?, ?, ?, ?, ?, ?)", ('garson', 'garson123', 'Garson', 20000.0, 2, 'Pazartesi'))
-
-        try:
-                self.cursor.execute("ALTER TABLE shifts ADD COLUMN hours INTEGER DEFAULT 8")
-                print("✅ 'hours' sütunu mevcut veritabanına başarıyla eklendi!")
-        except sqlite3.OperationalError:
-                # Eğer sütun zaten varsa SQLite hata verir, biz bu hatayı görmezden geliyoruz (pass)
-            pass
-
+        # Finalize and save all changes
         self.conn.commit()
+        print("✅ Database initialized successfully with English schema.")
+
+    def close_connection(self):
+        """Safely closes the database connection"""
+        self.conn.close()
