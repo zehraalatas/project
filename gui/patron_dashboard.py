@@ -104,14 +104,14 @@ class PatronDashboard:
                                                                                                     1)).pack(
                 side="left", padx=2)
 
-            # --- DİNAMİK ALAN BURASI ---
+            # --- DYNAMIC AREA İS HERE ---
             if role_count <= 1 and role not in ('Boss', 'Manager'):
-                # Eğer rolde tek kişiyse: COMBOBOX YERİNE KIRMIZI YAZI
+                # If the role is only 1 person: COMBOBOX BECOME RED
                 only_label = ctk.CTkLabel(row, text=f"ONLY {role.upper()}",
                                           text_color="#e74c3c", font=("Arial", 12, "bold"), width=110)
                 only_label.pack(side="left", padx=(20, 5))
             else:
-                # Birden fazla kişi varsa: COMBOBOX (GÜN SEÇİMİ)
+                # More than 1 person: COMBOBOX (CHOOSE A DAY)
                 combo = ctk.CTkComboBox(row, values=english_days, width=110)
                 combo.set(current_off)
                 combo.pack(side="left", padx=(20, 5))
@@ -225,14 +225,14 @@ class PatronDashboard:
         entry = ctk.CTkEntry(win, placeholder_text="Enter value...", width=180)
         entry.pack(pady=10)
 
-        # Hata mesajları için label
+        # Label for error messages
         error_lbl = ctk.CTkLabel(win, text="", font=("Arial", 11, "bold"))
         error_lbl.pack(pady=2)
 
         def confirm():
             val_str = entry.get().strip()
 
-            # 1. Sayı Kontrolü
+            # 1. Is it a number
             if not val_str.replace('.', '', 1).isdigit():
                 error_lbl.configure(text="⚠️ Please enter a valid number!", text_color="#e74c3c")
                 return
@@ -240,13 +240,13 @@ class PatronDashboard:
             val = float(val_str)
             raise_type = type_var.get()
 
-            # 2. Yüzde (%) Seçiliyse 0-100 Arası Kontrolü
+            # 2 If it is a percent check for is in 0 and 100
             if "Percentage" in raise_type:
                 if not (0 < val <= 100):
                     error_lbl.configure(text="⚠️ Percentage must be between 1-100!", text_color="#f1c40f")
                     return
 
-            # 3. Kullanıcı Bilgilerini Çek
+            # 3. Getting users info
             self.app.db_manager.cursor.execute("SELECT id, salary FROM users WHERE username=?", (sender,))
             user_data = self.app.db_manager.cursor.fetchone()
             if not user_data:
@@ -254,22 +254,21 @@ class PatronDashboard:
                 return
             u_id, cur_sal = user_data
 
-            # Yüzdeyi hesapla (Eğer Net Amount girildiyse yüzdeye çeviriyoruz)
+            # Calculate percent (If it is a certain amount we are turning this to percent)
             percent = val if "Percentage" in raise_type else (val / cur_sal) * 100
 
-            # 4. MAAŞI GÜNCELLE (SalaryService Çağrısı)
-            # Bu fonksiyonun içinde veritabanı UPDATE sorgusu olduğundan emin olmalısın
+            # 4. Remake the salary (Calling SalaryService)
             res = self.app.salary_service.apply_raise(u_id, percent)
 
             if res:
-                # İstek durumunu 'Approved' yap
+                # Set the request status to 'Approved'.
                 self.app.hr_service.update_request_status(req_id, 'Approved', 'Boss')
 
-                # Bildirim gönder
+                # Send notification
                 self.app.notification_service.send(sender,
                                                    f"Your raise is approved! New Salary: {res.new_salary:,.0f} ₺")
 
-                # Dashboard'u tazele
+                # Refresh the dashboard
                 self.load_staff_management()
                 self.load_manager_approvals()
                 self.update_stat_cards()
@@ -281,7 +280,7 @@ class PatronDashboard:
 
     def update_day(self, p_id, new_day_eng):
         """Updates the employee's off-day. Now directly using English values."""
-        # Artık day_rev sözlüğünü sildik çünkü DB ve UI aynı dili konuşuyor.
+
         db_day = new_day_eng
 
         self.app.db_manager.cursor.execute("SELECT role FROM users WHERE id=?", (p_id,))

@@ -6,38 +6,10 @@
   <component name="ChangeListManager">
     <list default="true" id="d4d7db15-82ef-4b19-a8ec-6ac1ead54eff" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/PersonnelManagementSystem.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/PersonnelManagementSystem.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/dataSources/5e01b243-5c64-49c9-87ba-650c27e9f5b8.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources/5e01b243-5c64-49c9-87ba-650c27e9f5b8.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/cafe_system.db" beforeDir="false" afterPath="$PROJECT_DIR$/cafe_system.db" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/database/db_manager.py" beforeDir="false" afterPath="$PROJECT_DIR$/database/db_manager.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/gui/app_gui.py" beforeDir="false" afterPath="$PROJECT_DIR$/gui/app_gui.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/gui/apply_screen.py" beforeDir="false" afterPath="$PROJECT_DIR$/gui/apply_screen.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/gui/employee_dashboard.py" beforeDir="false" afterPath="$PROJECT_DIR$/gui/employee_dashboard.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/gui/login_screen.py" beforeDir="false" afterPath="$PROJECT_DIR$/gui/login_screen.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/gui/manager_dashboard.py" beforeDir="false" afterPath="$PROJECT_DIR$/gui/manager_dashboard.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/gui/patron_dashboard.py" beforeDir="false" afterPath="$PROJECT_DIR$/gui/patron_dashboard.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/application.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/application.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/employee.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/employee.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/leave_request.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/leave_request.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/manager.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/manager.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/note.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/note.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/notification.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/notification.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/patron.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/patron.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/raise_request.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/raise_request.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/role.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/role.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/salary_record.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/salary_record.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/schedule.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/schedule.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/shift.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/shift.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/user.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/user.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/work_day.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/work_day.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/auth_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/auth_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/hr_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/hr_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/note_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/note_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/notification_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/notification_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/report_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/report_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/salary_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/salary_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/validation_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/validation_service.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -66,27 +38,27 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "Python.main.executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
-    "codeWithMe.voiceChat.enabledByDefault": "false",
-    "git-widget-placeholder": "master",
-    "ignore.virus.scanning.warn.message": "true",
-    "last_opened_file_path": "C:/Users/Victus/project",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "settings.editor.selected.configurable": "database.query.execution",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;Python.main.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;codeWithMe.voiceChat.enabledByDefault&quot;: &quot;false&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/Victus/project&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;database.query.execution&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
       <recent name="C:\Users\Victus\project\services" />
@@ -153,6 +125,7 @@
       <workItem from="1777657556665" duration="2317000" />
       <workItem from="1777878488933" duration="2499000" />
       <workItem from="1777888710233" duration="8754000" />
+      <workItem from="1778004039012" duration="3133000" />
     </task>
     <servers />
   </component>
@@ -160,7 +133,7 @@
     <option name="version" value="3" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/PersonnelManagementSystem$main.coverage" NAME="main Coverage Results" MODIFIED="1777880380375" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/PersonnelManagementSystem$main.coverage" NAME="main Coverage Results" MODIFIED="1778005514710" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/project$main.coverage" NAME="main Coverage Results" MODIFIED="1777897000046" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>

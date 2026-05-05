@@ -24,6 +24,8 @@ class LoginScreen:
         self.pass_input = ctk.CTkEntry(self.main_frame, placeholder_text="Password", show="*", width=250, height=40)
         self.pass_input.place(relx=0.5, rely=0.5, anchor=ctk.CENTER)
 
+        self.pass_input.bind('<Return>', self.login)
+
         # Login and Apply Buttons
         self.btn_login = ctk.CTkButton(self.main_frame, text="Login", command=self.login, width=250, height=40)
         self.btn_login.place(relx=0.5, rely=0.65, anchor=ctk.CENTER)
@@ -36,10 +38,11 @@ class LoginScreen:
         self.info_label = ctk.CTkLabel(self.main_frame, text="", text_color="red")
         self.info_label.place(relx=0.5, rely=0.9, anchor=ctk.CENTER)
 
-    def login(self):
+    def login(self, event=None):
         # Taking inputs from entries
-        uname = self.user_input.get()
-        pword = self.pass_input.get()
+        uname = self.user_input.get().strip()
+        pword = self.pass_input.get().strip()
+
 
         # Check user from authentication service
         found_user = self.app.auth_service.login(uname, pword)
