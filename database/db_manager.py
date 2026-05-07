@@ -37,6 +37,7 @@ class DatabaseManager:
                             """)
 
         # 2. Applications Table: For job seekers
+        # db_manager.py içindeki tablo oluşturma kısmına ekle:
         self.cursor.execute("""
                             CREATE TABLE IF NOT EXISTS applications
                             (
@@ -46,6 +47,18 @@ class DatabaseManager:
                                 KEY
                                 AUTOINCREMENT,
                                 name
+                                TEXT,
+                                surname
+                                TEXT,
+                                gender
+                                TEXT,
+                                email
+                                TEXT,
+                                phone
+                                TEXT,
+                                experience
+                                TEXT,
+                                notes
                                 TEXT,
                                 desired_role
                                 TEXT,
@@ -102,8 +115,8 @@ class DatabaseManager:
         # Using a List of Tuples for easy management (Lesson Topic: Collections)
         default_accounts = [
             ('admin', 'admin123', 'Boss', 500000.0, None, 'Monday'),
-            ('manager', 'manager123', 'Manager', 35000.0, None, 'Monday'),
-            ('zehra', 'zehra123', 'Waiter', 20000.0, 2, 'Monday')
+            ('manager', 'manager123', 'Manager', 35000.0, None, 'Monday')
+
         ]
 
         for user_data in default_accounts:

@@ -568,7 +568,7 @@
     </routine>
     <schema id="214" parent="1" name="main">
       <Current>1</Current>
-      <LastIntrospectionLocalTimestamp>2026-05-07.12:37:11</LastIntrospectionLocalTimestamp>
+      <LastIntrospectionLocalTimestamp>2026-05-07.16:19:59</LastIntrospectionLocalTimestamp>
     </schema>
     <argument id="215" parent="14">
       <ArgumentDirection>R</ArgumentDirection>
@@ -1818,187 +1818,254 @@
     <table id="634" parent="214" name="sqlite_sequence">
       <System>1</System>
     </table>
-    <column id="635" parent="627" name="id">
+    <table id="635" parent="214" name="users"/>
+    <column id="636" parent="627" name="id">
       <AutoIncrement>1</AutoIncrement>
       <Position>1</Position>
       <StoredType>INTEGER|0s</StoredType>
     </column>
-    <column id="636" parent="627" name="name">
+    <column id="637" parent="627" name="name">
       <Position>2</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="637" parent="627" name="desired_role">
+    <column id="638" parent="627" name="surname">
       <Position>3</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="638" parent="627" name="status">
+    <column id="639" parent="627" name="gender">
       <Position>4</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <key id="639" parent="627">
-      <ColNames>id</ColNames>
-      <Primary>1</Primary>
-    </key>
-    <column id="640" parent="628" name="id">
-      <AutoIncrement>1</AutoIncrement>
-      <Position>1</Position>
-      <StoredType>INTEGER|0s</StoredType>
-    </column>
-    <column id="641" parent="628" name="sender_name">
-      <Position>2</Position>
-      <StoredType>TEXT|0s</StoredType>
-    </column>
-    <column id="642" parent="628" name="sender_role">
-      <Position>3</Position>
-      <StoredType>TEXT|0s</StoredType>
-    </column>
-    <column id="643" parent="628" name="target_role">
-      <Position>4</Position>
-      <StoredType>TEXT|0s</StoredType>
-    </column>
-    <column id="644" parent="628" name="content">
+    <column id="640" parent="627" name="email">
       <Position>5</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="645" parent="628" name="date">
+    <column id="641" parent="627" name="phone">
       <Position>6</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <key id="646" parent="628">
+    <column id="642" parent="627" name="experience">
+      <Position>7</Position>
+      <StoredType>TEXT|0s</StoredType>
+    </column>
+    <column id="643" parent="627" name="notes">
+      <Position>8</Position>
+      <StoredType>TEXT|0s</StoredType>
+    </column>
+    <column id="644" parent="627" name="desired_role">
+      <Position>9</Position>
+      <StoredType>TEXT|0s</StoredType>
+    </column>
+    <column id="645" parent="627" name="status">
+      <Position>10</Position>
+      <StoredType>TEXT|0s</StoredType>
+    </column>
+    <key id="646" parent="627">
       <ColNames>id</ColNames>
       <Primary>1</Primary>
     </key>
-    <column id="647" parent="629" name="id">
+    <column id="647" parent="628" name="id">
       <AutoIncrement>1</AutoIncrement>
       <Position>1</Position>
       <StoredType>INTEGER|0s</StoredType>
     </column>
-    <column id="648" parent="629" name="recipient">
+    <column id="648" parent="628" name="sender_name">
       <Position>2</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="649" parent="629" name="message">
+    <column id="649" parent="628" name="sender_role">
       <Position>3</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="650" parent="629" name="is_read">
+    <column id="650" parent="628" name="target_role">
+      <Position>4</Position>
+      <StoredType>TEXT|0s</StoredType>
+    </column>
+    <column id="651" parent="628" name="content">
+      <Position>5</Position>
+      <StoredType>TEXT|0s</StoredType>
+    </column>
+    <column id="652" parent="628" name="date">
+      <Position>6</Position>
+      <StoredType>TEXT|0s</StoredType>
+    </column>
+    <key id="653" parent="628">
+      <ColNames>id</ColNames>
+      <Primary>1</Primary>
+    </key>
+    <column id="654" parent="629" name="id">
+      <AutoIncrement>1</AutoIncrement>
+      <Position>1</Position>
+      <StoredType>INTEGER|0s</StoredType>
+    </column>
+    <column id="655" parent="629" name="recipient">
+      <Position>2</Position>
+      <StoredType>TEXT|0s</StoredType>
+    </column>
+    <column id="656" parent="629" name="message">
+      <Position>3</Position>
+      <StoredType>TEXT|0s</StoredType>
+    </column>
+    <column id="657" parent="629" name="is_read">
       <DefaultExpression>0</DefaultExpression>
       <Position>4</Position>
       <StoredType>INTEGER|0s</StoredType>
     </column>
-    <key id="651" parent="629">
+    <key id="658" parent="629">
       <ColNames>id</ColNames>
       <Primary>1</Primary>
     </key>
-    <column id="652" parent="630" name="id">
+    <column id="659" parent="630" name="id">
       <AutoIncrement>1</AutoIncrement>
       <Position>1</Position>
       <StoredType>INTEGER|0s</StoredType>
     </column>
-    <column id="653" parent="630" name="sender_name">
+    <column id="660" parent="630" name="sender_name">
       <Position>2</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="654" parent="630" name="request_type">
+    <column id="661" parent="630" name="request_type">
       <Position>3</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="655" parent="630" name="detail">
+    <column id="662" parent="630" name="detail">
       <Position>4</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="656" parent="630" name="status">
+    <column id="663" parent="630" name="status">
       <Position>5</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <key id="657" parent="630">
+    <key id="664" parent="630">
       <ColNames>id</ColNames>
       <Primary>1</Primary>
     </key>
-    <column id="658" parent="631" name="id">
+    <column id="665" parent="631" name="id">
       <AutoIncrement>1</AutoIncrement>
       <Position>1</Position>
       <StoredType>INTEGER|0s</StoredType>
     </column>
-    <column id="659" parent="631" name="user_id">
+    <column id="666" parent="631" name="user_id">
       <Position>2</Position>
       <StoredType>INTEGER|0s</StoredType>
     </column>
-    <column id="660" parent="631" name="old_salary">
+    <column id="667" parent="631" name="old_salary">
       <Position>3</Position>
       <StoredType>REAL|0s</StoredType>
     </column>
-    <column id="661" parent="631" name="new_salary">
+    <column id="668" parent="631" name="new_salary">
       <Position>4</Position>
       <StoredType>REAL|0s</StoredType>
     </column>
-    <column id="662" parent="631" name="percent">
+    <column id="669" parent="631" name="percent">
       <Position>5</Position>
       <StoredType>REAL|0s</StoredType>
     </column>
-    <column id="663" parent="631" name="date">
+    <column id="670" parent="631" name="date">
       <Position>6</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <key id="664" parent="631">
+    <key id="671" parent="631">
       <ColNames>id</ColNames>
       <Primary>1</Primary>
     </key>
-    <column id="665" parent="632" name="id">
+    <column id="672" parent="632" name="id">
       <AutoIncrement>1</AutoIncrement>
       <Position>1</Position>
       <StoredType>INTEGER|0s</StoredType>
     </column>
-    <column id="666" parent="632" name="user_id">
+    <column id="673" parent="632" name="user_id">
       <Position>2</Position>
       <StoredType>INTEGER|0s</StoredType>
     </column>
-    <column id="667" parent="632" name="username">
+    <column id="674" parent="632" name="username">
       <Position>3</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="668" parent="632" name="date">
+    <column id="675" parent="632" name="date">
       <Position>4</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="669" parent="632" name="status">
+    <column id="676" parent="632" name="status">
       <Position>5</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="670" parent="632" name="hours">
+    <column id="677" parent="632" name="hours">
       <DefaultExpression>8</DefaultExpression>
       <Position>6</Position>
       <StoredType>INTEGER|0s</StoredType>
     </column>
-    <key id="671" parent="632">
+    <key id="678" parent="632">
       <ColNames>id</ColNames>
       <Primary>1</Primary>
     </key>
-    <column id="672" parent="633" name="type">
+    <column id="679" parent="633" name="type">
       <Position>1</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="673" parent="633" name="name">
+    <column id="680" parent="633" name="name">
       <Position>2</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="674" parent="633" name="tbl_name">
+    <column id="681" parent="633" name="tbl_name">
       <Position>3</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="675" parent="633" name="rootpage">
+    <column id="682" parent="633" name="rootpage">
       <Position>4</Position>
       <StoredType>INT|0s</StoredType>
     </column>
-    <column id="676" parent="633" name="sql">
+    <column id="683" parent="633" name="sql">
       <Position>5</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="677" parent="634" name="name">
+    <column id="684" parent="634" name="name">
       <Position>1</Position>
     </column>
-    <column id="678" parent="634" name="seq">
+    <column id="685" parent="634" name="seq">
       <Position>2</Position>
     </column>
+    <column id="686" parent="635" name="id">
+      <AutoIncrement>1</AutoIncrement>
+      <Position>1</Position>
+      <StoredType>INTEGER|0s</StoredType>
+    </column>
+    <column id="687" parent="635" name="username">
+      <Position>2</Position>
+      <StoredType>TEXT|0s</StoredType>
+    </column>
+    <column id="688" parent="635" name="password">
+      <Position>3</Position>
+      <StoredType>TEXT|0s</StoredType>
+    </column>
+    <column id="689" parent="635" name="role">
+      <Position>4</Position>
+      <StoredType>TEXT|0s</StoredType>
+    </column>
+    <column id="690" parent="635" name="salary">
+      <Position>5</Position>
+      <StoredType>REAL|0s</StoredType>
+    </column>
+    <column id="691" parent="635" name="manager_id">
+      <Position>6</Position>
+      <StoredType>INTEGER|0s</StoredType>
+    </column>
+    <column id="692" parent="635" name="off_day">
+      <Position>7</Position>
+      <StoredType>TEXT|0s</StoredType>
+    </column>
+    <index id="693" parent="635" name="sqlite_autoindex_users_1">
+      <ColNames>username</ColNames>
+      <NameSurrogate>1</NameSurrogate>
+      <Unique>1</Unique>
+    </index>
+    <key id="694" parent="635">
+      <ColNames>id</ColNames>
+      <Primary>1</Primary>
+    </key>
+    <key id="695" parent="635">
+      <ColNames>username</ColNames>
+      <UnderlyingIndexName>sqlite_autoindex_users_1</UnderlyingIndexName>
+    </key>
   </database-model>
 </dataSource>

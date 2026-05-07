@@ -1,31 +1,34 @@
 class Role:
-    # Constants for database and logic checks
-    BOSS = "Boss"           # Eski: Patron
-    MANAGER = "Manager"     # Eski: Müdür
-    WAITER = "Waiter"       # Eski: Garson
+    # Sabit değerler (Veritabanı ile eşleşenler)
+    BOSS = "Boss"
+    MANAGER = "Manager"
+    WAITER = "Waiter"
     BARISTA = "Barista"
-    CHEF = "Chef"           # Eski: Aşçı
-    CLEANER = "Cleaner"     # Eski: Temizlikçi
-    CASHIER = "Cashier"     # Eski: Kasiyer
+    CHEF = "Chef"
+    CLEANER = "Cleaner"
+    CASHIER = "Cashier"
 
-    @staticmethod
-    def get_employee_roles():
+    def __init__(self):
+        # Bu sınıfı nesne olarak oluşturduğumuzda
+        # varsayılan bir rol listesi tutabiliriz.
+        pass
+
+    def get_employee_roles(self):
         """
-        Lists only standard staff positions for the job application screen.
-        Boss or Manager positions cannot be applied for directly.
+        Sadece iş başvurusu yapılabilen pozisyonları döndürür.
+        Admin ve Müdür pozisyonlarını listeden çıkarır.
         """
         return [
-            Role.WAITER,
-            Role.BARISTA,
-            Role.CHEF,
-            Role.CLEANER,
-            Role.CASHIER
+            self.WAITER,
+            self.BARISTA,
+            self.CHEF,
+            self.CLEANER,
+            self.CASHIER
         ]
 
-    @staticmethod
-    def get_all_roles():
-        """Returns every role defined in the system for administrative use."""
+    def get_all_roles(self):
+        """Sistemdeki istisnasız tüm rolleri döndürür."""
         return [
-            Role.BOSS, Role.MANAGER, Role.WAITER,
-            Role.BARISTA, Role.CHEF, Role.CLEANER, Role.CASHIER
+            self.BOSS, self.MANAGER, self.WAITER,
+            self.BARISTA, self.CHEF, self.CLEANER, self.CASHIER
         ]

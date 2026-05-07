@@ -1,5 +1,6 @@
 import customtkinter as ctk
 import datetime
+import json  # Dosyanın en başında mutlaka olmalı
 
 class PatronDashboard:
     def __init__(self, app):
@@ -25,6 +26,7 @@ class PatronDashboard:
         # Load initial data for all tabs
         self.load_staff_management()
         self.load_manager_approvals()
+        self.load_job_applications()
         self.load_job_applications()
 
         # Listen for tab changes (specifically for the tracking tab)
@@ -209,29 +211,29 @@ class PatronDashboard:
 
         # Bildirim gönder
         self.app.notification_service.send(sender, msg)
+
     def load_job_applications(self):
-        """Displays job applications with English status 'Pending'"""
-        for widget in self.tab_applications.winfo_children(): widget.destroy()
+        for widget in self.tab_applications.winfo_children():
+            widget.destroy()
 
         apps = self.app.hr_service.get_pending_applications()
-        scroll = ctk.CTkScrollableFrame(self.tab_applications, fg_color="transparent")
-        scroll.pack(fill="both", expand=True, pady=10)
 
-        for app_data in apps:
-            app_id, name, role, status = app_data
-            row = ctk.CTkFrame(scroll)
-            row.pack(pady=5, padx=20, fill="x")
+        for a in apps:
+            # --- KORUMA EKLEDİK ---
+            # Eğer 'a' bir nesne değilse veya içindeki cv bir nesne değilse atla
+            if not a or isinstance(a, str) or isinstance(a.cv, str):
+                continue
+            # ----------------------
 
-            ctk.CTkLabel(row, text=f"👤 {name.capitalize()} - {role}",
-                         font=("Arial", 14, "bold")).pack(side="left", padx=20, pady=10)
+            row = ctk.CTkFrame(self.tab_applications)
+            row.pack(fill="x", pady=5, padx=20)
 
-            # Sending English status 'Approved' or 'Rejected' to HRService
-            ctk.CTkButton(row, text="Hire ✅", width=90, fg_color="#2ecc71",
-                          command=lambda a=app_id: self.process_hire(a, "Approved")).pack(side="right", padx=10)
+            # Artık burada güvenle name ve surname çağırabiliriz
+            ctk.CTkLabel(row, text=f"👤 {a.cv.name} {a.cv.surname} - {a.desired_role}").pack(side="left", padx=10)
 
-            ctk.CTkButton(row, text="Reject ❌", width=90, fg_color="#e74c3c",
-                          command=lambda a=app_id: self.process_hire(a, "Rejected")).pack(side="right", padx=10)
-
+            # View CV Butonu
+            ctk.CTkButton(row, text="View CV 📄", width=100, fg_color="#8e44ad",
+                          command=lambda obj=a: self.show_cv_popup(obj)).pack(side="right", padx=5)
     def process_hire(self, app_id, status):
         self.app.hr_service.process_application(app_id, status)
         self.load_job_applications()
@@ -429,33 +431,75 @@ class PatronDashboard:
         ctk.CTkButton(inf, text="Post", width=70, command=send, fg_color="#2ecc71").pack(side="right")
 
     def load_shift_reports(self):
-        for widget in self.tab_reports.winfo_children(): widget.destroy()
-        ctk.CTkLabel(self.tab_reports, text="🚨 Personnel Status", font=("Arial", 16, "bold")).pack(pady=10)
+        """Refreshes the personnel management and daily shift logs with a cleaner UI."""
+        # Sekmeyi temizle
+        for widget in self.tab_reports.winfo_children():
+            widget.destroy()
 
-        sc = ctk.CTkScrollableFrame(self.tab_reports, height=150)
+        # --- SECTION 1: PERSONNEL MANAGEMENT (FIRE STAFF) ---
+        ctk.CTkLabel(self.tab_reports, text="🚨 PERSONNEL MANAGEMENT",
+                     font=("Arial", 16, "bold"), text_color="#e74c3c").pack(pady=(15, 5))
+
+        sc = ctk.CTkScrollableFrame(self.tab_reports, height=180, border_width=1, border_color="#34495e")
         sc.pack(fill="x", padx=20, pady=5)
 
         self.app.db_manager.cursor.execute("SELECT id, username, role FROM users WHERE role != 'Boss'")
         staff = self.app.db_manager.cursor.fetchall()
 
         for sid, sname, srole in staff:
-            row = ctk.CTkFrame(sc, fg_color="#34495e")
-            row.pack(fill="x", pady=2, padx=5)
-            ctk.CTkLabel(row, text=f"👤 {sname.capitalize()} ({srole})").pack(side="left", padx=10)
-            ctk.CTkButton(row, text="Fire ❌", fg_color="#c0392b", command=lambda i=sid: self.fire_staff(i)).pack(side="right", padx=10)
+            row = ctk.CTkFrame(sc, fg_color="#2c3e50", corner_radius=6)
+            row.pack(fill="x", pady=3, padx=5)
 
-        ctk.CTkLabel(self.tab_reports, text="📅 Daily Shifts", font=("Arial", 16, "bold")).pack(pady=20)
-        rc = ctk.CTkScrollableFrame(self.tab_reports)
+            # Sol taraf: İsim ve Rol
+            ctk.CTkLabel(row, text=f"👤 {sname.capitalize()}", font=("Arial", 13, "bold"), width=150, anchor="w").pack(
+                side="left", padx=15)
+            ctk.CTkLabel(row, text=f"[{srole}]", font=("Arial", 11), text_color="gray", width=100).pack(side="left")
+
+            # Sağ taraf: İşten Çıkarma Butonu
+            ctk.CTkButton(row, text="Terminate ❌", fg_color="transparent", border_width=1, border_color="#c0392b",
+                          hover_color="#c0392b", width=100, height=28,
+                          command=lambda i=sid: self.fire_staff(i)).pack(side="right", padx=10, pady=5)
+
+        # --- SECTION 2: DAILY SHIFT LOGS ---
+        ctk.CTkLabel(self.tab_reports, text="📅 DAILY ATTENDANCE LOGS",
+                     font=("Arial", 16, "bold"), text_color="#3498db").pack(pady=(25, 5))
+
+        # Başlık Satırı (Tablo gibi görünmesi için)
+        head_frame = ctk.CTkFrame(self.tab_reports, fg_color="transparent")
+        head_frame.pack(fill="x", padx=25)
+        ctk.CTkLabel(head_frame, text="Date", font=("Arial", 11, "bold"), text_color="gray", width=120,
+                     anchor="w").pack(side="left")
+        ctk.CTkLabel(head_frame, text="Employee", font=("Arial", 11, "bold"), text_color="gray", width=150,
+                     anchor="w").pack(side="left")
+        ctk.CTkLabel(head_frame, text="Status", font=("Arial", 11, "bold"), text_color="gray").pack(side="right",
+                                                                                                    padx=20)
+
+        rc = ctk.CTkScrollableFrame(self.tab_reports, border_width=1, border_color="#34495e")
         rc.pack(fill="both", expand=True, padx=20, pady=5)
 
         shifts = self.app.hr_service.get_all_shifts()
-        for s in shifts:
-            row = ctk.CTkFrame(rc, fg_color="#2c3e50")
-            row.pack(fill="x", pady=2, padx=5)
-            ctk.CTkLabel(row, text=f"📅 {s.date} | {s.username.capitalize()}").pack(side="left", padx=10)
-            color = "#2ecc71" if s.status == "Working" else "#e74c3c"
-            ctk.CTkLabel(row, text=s.status, text_color=color).pack(side="right", padx=10)
 
+        if not shifts:
+            ctk.CTkLabel(rc, text="No shift records found for today.", text_color="gray").pack(pady=20)
+        else:
+            for s in shifts:
+                row = ctk.CTkFrame(rc, fg_color="#34495e", corner_radius=4)
+                row.pack(fill="x", pady=2, padx=5)
+
+                # Tarih
+                ctk.CTkLabel(row, text=f"🗓 {s.date}", font=("Arial", 12), width=120, anchor="w").pack(side="left",
+                                                                                                      padx=10)
+
+                # Personel Adı
+                ctk.CTkLabel(row, text=s.username.capitalize(), font=("Arial", 12, "bold"), width=150, anchor="w").pack(
+                    side="left")
+
+                # Durum (Renkli)
+                status_color = "#2ecc71" if s.status == "Working" else "#e74c3c"
+                status_text = "PRESENT ✅" if s.status == "Working" else "ABSENT ❌"
+
+                ctk.CTkLabel(row, text=status_text, text_color=status_color, font=("Arial", 11, "bold")).pack(
+                    side="right", padx=15)
     def fire_staff(self, p_id):
         self.app.hr_service.fire_employee(p_id)
         self.load_staff_management()
@@ -465,3 +509,91 @@ class PatronDashboard:
     def on_tab_change(self):
         if self.tabview.get() == "📊 Performance Tracking":
             self.load_shift_reports()
+
+    # PatronDashboard sınıfının içine eklenecek metodlar:
+
+
+
+    def show_cv_popup(self, app_obj):
+        win = ctk.CTkToplevel(self.app)
+        win.title(f"Detailed CV: {app_obj.cv.name} {app_obj.cv.surname}")
+        win.geometry("550x750")  # Deneyimler artabileceği için boyutu biraz büyüttük
+        win.grab_set()
+        win.attributes("-topmost", True)
+
+        # Ana Başlık
+        header_label = ctk.CTkLabel(win, text="📄 CANDIDATE PROFILE", font=("Arial", 22, "bold"), text_color="#3498db")
+        header_label.pack(pady=20)
+
+        # Bilgilerin olduğu ana gövde (Frame)
+        info_container = ctk.CTkFrame(win, fg_color="transparent")
+        info_container.pack(fill="both", expand=False, padx=30)
+
+        # Bilgi Satırı Fonksiyonu
+        # Bilgi Satırı Fonksiyonu (Daha temiz görünüm için)
+        def create_info_row(parent, label_text, value_text, row_num):
+            lbl = ctk.CTkLabel(parent, text=label_text, font=("Arial", 12, "bold"), text_color="gray")
+            lbl.grid(row=row_num, column=0, sticky="w", pady=8, padx=10)
+
+            val = ctk.CTkLabel(parent, text=value_text, font=("Arial", 13), text_color="white")
+            val.grid(row=row_num, column=1, sticky="w", pady=8, padx=10)
+
+        # 1. Kişisel Bilgiler Bölümü
+        create_info_row(info_container, "Full Name:", f"{app_obj.cv.name} {app_obj.cv.surname}", 0)
+        create_info_row(info_container, "Gender:", app_obj.cv.gender, 1)
+        create_info_row(info_container, "Email:", app_obj.cv.email, 2)
+        create_info_row(info_container, "Phone:", app_obj.cv.phone, 3)
+        create_info_row(info_container, "Position Applied:", app_obj.desired_role, 4)
+
+        # 2. Deneyim Bölümü Başlığı
+        exp_header = ctk.CTkLabel(win, text="🛠 WORK EXPERIENCE", font=("Arial", 14, "bold"), text_color="#f1c40f")
+        exp_header.pack(pady=(20, 5), padx=40, anchor="w")
+
+        # 3. DENEYİM VERİSİNİ İŞLEME (Görseldeki hatayı düzelten kısım)
+        formatted_exp_text = ""
+        raw_data = app_obj.cv.experiences
+
+        if not raw_data or raw_data == "No experience":
+            formatted_exp_text = "No work experience provided."
+        else:
+            try:
+                # Veri bazen string içinde string olarak gelebilir, temizliyoruz
+                if isinstance(raw_data, str):
+                    # Baştaki ve sondaki gereksiz tırnakları temizle
+                    clean_data = raw_data.strip('"').replace('\\"', '"')
+                    experiences = json.loads(clean_data)
+                else:
+                    experiences = raw_data
+
+                if not experiences or not isinstance(experiences, list):
+                    formatted_exp_text = "No work experience provided."
+                else:
+                    for i, exp in enumerate(experiences, 1):
+                        formatted_exp_text += f"{i}. COMPANY: {exp.get('company', 'N/A').upper()}\n"
+                        formatted_exp_text += f"   POSITION: {exp.get('pos', 'N/A')}\n"
+                        formatted_exp_text += f"   DATES: {exp.get('date', 'N/A')}\n"
+                        formatted_exp_text += "-" * 45 + "\n"
+
+            except Exception as e:
+                # Eğer JSON ayrıştırma tamamen başarısız olursa ham veriyi göster ama temizle
+                formatted_exp_text = str(raw_data).replace('[', '').replace(']', '').replace('{', '').replace('}', '')
+
+        # Deneyim Kutusu
+        exp_box = ctk.CTkTextbox(win, width=480, height=200, corner_radius=10, border_width=1, border_color="#34495e")
+        exp_box.pack(pady=5, padx=30)
+        exp_box.insert("1.0", formatted_exp_text)
+        exp_box.configure(state="disabled")
+
+        # 4. Alt Butonlar (Approve / Reject)
+        btn_frame = ctk.CTkFrame(win, fg_color="transparent")
+        btn_frame.pack(side="bottom", pady=30)
+
+        approve_btn = ctk.CTkButton(btn_frame, text="APPROVE & HIRE", fg_color="#2ecc71", hover_color="#27ae60",
+                                    width=180, height=40, font=("Arial", 13, "bold"),
+                                    command=lambda: [self.process_hire(app_obj.app_id, "Approved"), win.destroy()])
+        approve_btn.pack(side="left", padx=15)
+
+        reject_btn = ctk.CTkButton(btn_frame, text="REJECT", fg_color="#e74c3c", hover_color="#c0392b",
+                                   width=120, height=40, font=("Arial", 13, "bold"),
+                                   command=lambda: [self.process_hire(app_obj.app_id, "Rejected"), win.destroy()])
+        reject_btn.pack(side="left", padx=15)

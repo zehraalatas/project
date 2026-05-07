@@ -1,62 +1,98 @@
-import datetime
+from models.cv import CV
+from models.application import Application
 from models.shift import Shift
+from datetime import datetime
+import json
 
 
 class HRService:
     def __init__(self, db_manager):
         self.db = db_manager
 
-    def submit_application(self, name, role):
-        """Adds a new job application to the system with 'Pending' status"""
-        query = "INSERT INTO applications (name, desired_role, status) VALUES (?, ?, 'Pending')"
-        self.db.cursor.execute(query, (name, role))
+    def submit_application(self, cv_obj, role):
+        # Deneyim listesini stringe çeviriyoruz (Serialization)
+        exp_json = json.dumps(cv_obj.experiences)
+
+        query = """INSERT INTO applications
+                   (name, surname, gender, email, phone, experience, notes, desired_role, status)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending')"""
+        self.db.cursor.execute(query, (
+            cv_obj.name, cv_obj.surname, cv_obj.gender, cv_obj.email,
+            cv_obj.phone, exp_json, cv_obj.notes, role
+        ))
         self.db.conn.commit()
 
     def get_pending_applications(self):
-        """Fetches all job applications waiting for review"""
-        self.db.cursor.execute("SELECT * FROM applications WHERE status='Pending'")
-        return self.db.cursor.fetchall()
+        query = "SELECT id, name, surname, gender, email, phone, experience, notes, desired_role FROM applications WHERE status='Pending'"
+        self.db.cursor.execute(query)
+        rows = self.db.cursor.fetchall()
+
+        from models.cv import CV
+        from models.application import Application
+
+        apps = []
+        for r in rows:
+            try:
+                # r[6] veritabanındaki 'experience' kolonudur
+                cv = CV(
+                    name=r[1],
+                    surname=r[2],
+                    gender=r[3],
+                    email=r[4],
+                    phone=r[5],
+                    experiences=r[6], # Modeldeki isim 'experiences'
+                    notes=r[7]
+                )
+                # Sınıfındaki parametre sırası: id, role, status, cv_obj
+                apps.append(Application(r[0], r[8], "Pending", cv))
+            except Exception as e:
+                print(f"Hata: {e}")
+                continue
+        return apps
 
     def process_application(self, app_id, status):
-        """Finalizes the application. If 'Approved', automatically creates a new employee account."""
+        """Başvuruyu sonuçlandırır. Eğer 'Approved' ise CV verileriyle kullanıcı hesabı açar."""
         if status == "Approved":
-            self.db.cursor.execute("SELECT name, desired_role FROM applications WHERE id=?", (app_id,))
+            # 1. Veritabanından adayın tüm CV bilgilerini çekiyoruz
+            query = "SELECT name, surname, desired_role FROM applications WHERE id=?"
+            self.db.cursor.execute(query, (app_id,))
             app_data = self.db.cursor.fetchone()
 
             if app_data:
-                name, role = app_data
-                clean_name = name.lower().strip().replace(" ", "")
+                name, surname, role = app_data
 
-                # --- İSİM ÇAKIŞMASI KONTROL DÖNGÜSÜ ---
-                base_username = f"{role.lower()}_{clean_name}"
+                # 2. f-string ile Temiz Kullanıcı Adı Oluşturma
+                # Küçük harfe çeviriyoruz, boşlukları siliyoruz (Örn: "Ömer Demir" -> "omer_demir")
+                clean_name = name.lower().strip().replace(" ", "")
+                clean_surname = surname.lower().strip().replace(" ", "")
+
+                base_username = f"{clean_name}_{clean_surname}"  # İşte bahsettiğim f-string burası!
                 final_username = base_username
                 counter = 1
 
+                # 3. İsim Çakışması Kontrolü (Aynı isimde başka çalışan varsa)
                 while True:
-                    # Veritabanında bu username var mı diye bakıyoruz
                     self.db.cursor.execute("SELECT id FROM users WHERE username=?", (final_username,))
                     if not self.db.cursor.fetchone():
-                        # Eğer yoksa (boşsa), döngüden çık, doğru ismi bulduk!
                         break
-
-                    # Eğer varsa, sayacı 1 artır ve ismin sonuna ekle (Örn: waiter_ahmet2)
                     counter += 1
                     final_username = f"{base_username}{counter}"
 
-                # Şifreyi de yeni isme göre belirleyelim (Ahmet2 ise şifresi ahmet2123 olsun)
-                password_prefix = f"{clean_name}{counter if counter > 1 else ''}"
-                password = f"{password_prefix}123"
+                # 4. Şifre Oluşturma (Örn: odemir123)
+                # İsmin ilk harfi + soyisim + 123
+                password = f"{clean_name}123"
 
                 try:
-                    # New employees start with a default salary and Monday off-day
+                    # Yeni çalışanı varsayılan maaş (20.000) ve izin günüyle ekliyoruz
                     self.db.cursor.execute(
                         "INSERT INTO users (username, password, role, salary, manager_id, off_day) VALUES (?, ?, ?, ?, ?, ?)",
                         (final_username, password, role, 20000.0, 2, "Monday")
                     )
+                    print(f"Account Created: {final_username} / Password: {password}")
                 except Exception as e:
                     print(f"Error creating user: {e}")
 
-        # Update the application table with the final decision
+        # 5. Başvuru tablosunu güncelle (Status: Approved/Rejected)
         self.db.cursor.execute("UPDATE applications SET status=? WHERE id=?", (status, app_id))
         self.db.conn.commit()
 
