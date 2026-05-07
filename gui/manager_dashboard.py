@@ -1,8 +1,4 @@
 import customtkinter as ctk
-# Model imports
-from models.application import JobApplication
-from models.leave_request import LeaveRequest
-from models.raise_request import RaiseRequest
 
 
 class ManagerDashboard:
@@ -36,7 +32,6 @@ class ManagerDashboard:
         for widget in self.request_tab.winfo_children():
             widget.destroy()
 
-        # Updated to 'Pending Manager' to match HRService logic
         query = "SELECT id, sender_name, request_type, detail, status FROM requests WHERE status='Pending Manager'"
         self.app.db_manager.cursor.execute(query)
         all_requests = self.app.db_manager.cursor.fetchall()
@@ -49,7 +44,6 @@ class ManagerDashboard:
         scroll_view = ctk.CTkScrollableFrame(self.request_tab, fg_color="transparent")
         scroll_view.pack(fill="both", expand=True, pady=10)
 
-        # Mapping request types for UI display
         type_labels = {"Leave": "Leave Request", "Salary": "Salary Raise"}
 
         for req in all_requests:
@@ -57,30 +51,31 @@ class ManagerDashboard:
             row_frame = ctk.CTkFrame(scroll_view)
             row_frame.pack(pady=5, padx=20, fill="x")
 
-            # Updated check for English types
             icon = "📅" if r_type == "Leave" else "💰"
             eng_type = type_labels.get(r_type, r_type)
             display_text = f"{icon} {sender.capitalize()} - {eng_type} ({info})"
 
             ctk.CTkLabel(row_frame, text=display_text, font=("Arial", 13, "bold")).pack(side="left", padx=20, pady=10)
 
-            # Actions - Sending "Approved" or "Rejected" directly to HRService
             ctk.CTkButton(row_frame, text="Approve ✅", width=110, fg_color="#3498db",
-                          command=lambda i=r_id, s=sender: self.update_request(i, "Approved", s)).pack(side="right", padx=10)
+                          command=lambda i=r_id, s=sender, rt=r_type: self.update_request(i, "Approved", s, rt)).pack(
+                side="right", padx=10)
 
             ctk.CTkButton(row_frame, text="Reject ❌", width=90, fg_color="#e74c3c",
-                          command=lambda i=r_id, s=sender: self.update_request(i, "Rejected", s)).pack(side="right", padx=10)
+                          command=lambda i=r_id, s=sender, rt=r_type: self.update_request(i, "Rejected", s, rt)).pack(
+                side="right", padx=10)
 
-    def update_request(self, req_id, new_status, employee_name):
+    def update_request(self, req_id, new_status, employee_name, req_type):
         """Handles the decision and sends notification based on new English schema"""
-        # We now send "Approved"/"Rejected" directly. HRService handles 'Pending Boss' logic.
         success = self.app.hr_service.update_request_status(req_id, new_status, "Manager")
 
         if success:
+            display_type = "Leave" if req_type == "Leave" else "Salary Raise"
+
             if new_status == "Approved":
-                msg = "Approved by Manager, waiting for Boss approval. ⏳"
+                msg = f"Your {display_type} request was approved by the Manager, waiting for Boss. ⏳"
             else:
-                msg = "Your request was rejected by the Manager. ❌"
+                msg = f"Your {display_type} request was rejected by the Manager. ❌"
 
             self.app.notification_service.send(employee_name, msg)
 
@@ -101,7 +96,9 @@ class ManagerDashboard:
                      font=("Arial", 15), text_color="gray").pack(pady=(10, 20))
 
         # Action Buttons
-        ctk.CTkButton(self.profile_tab, text="🔔 Notifications", fg_color="#34495e", width=380, height=35).pack(pady=5)
+        self.btn_notif = ctk.CTkButton(self.profile_tab, text="🔔 Notifications", command=self.show_notifications,
+                                       fg_color="#34495e", width=380, height=35)
+        self.btn_notif.pack(pady=5)
 
         self.btn_board = ctk.CTkButton(self.profile_tab, text="📝 Department Communication",
                                        command=self.open_all_boards, fg_color="#8e44ad", width=380, height=35)
@@ -130,75 +127,159 @@ class ManagerDashboard:
             day_card.pack_propagate(False)
             day_card.pack()
 
-            ctk.CTkLabel(day_card, text=status_text, font=("Arial", 13, "bold"), text_color="white").place(relx=0.5, rely=0.5, anchor="center")
+            ctk.CTkLabel(day_card, text=status_text, font=("Arial", 13, "bold"), text_color="white").place(relx=0.5,
+                                                                                                           rely=0.5,
+                                                                                                           anchor="center")
 
-        # Request Buttons for Manager's own needs
+        # BURASI SENİN KAYBOLAN BUTONLARININ YERİ (Manager's own requests)
         action_row = ctk.CTkFrame(self.profile_tab, fg_color="transparent")
         action_row.pack(pady=35)
 
         ctk.CTkButton(action_row, text="Request Leave", fg_color="#f39c12", width=150, height=40,
-                      command=self.open_leave_dialog).pack(side="left", padx=15)
+                      command=lambda: self.make_own_request("Leave")).pack(side="left", padx=15)
 
         ctk.CTkButton(action_row, text="Request Raise", fg_color="#8e44ad", width=150, height=40,
-                      command=self.open_salary_dialog).pack(side="left", padx=15)
+                      command=lambda: self.make_own_request("Salary")).pack(side="left", padx=15)
 
-    def open_leave_dialog(self):
-        """Popup for the Manager to request their own leave"""
-        dialog = ctk.CTkToplevel(self.app)
-        dialog.title("Leave Request")
-        dialog.geometry("300x200")
-        dialog.grab_set()
-        dialog.attributes("-topmost", True)
+        self.refresh_notif_badge()
 
-        ctk.CTkLabel(dialog, text="Select day for leave:", font=("Arial", 13, "bold")).pack(pady=(25, 5))
+    def refresh_notif_badge(self):
+        """Updates the notification button text if there are new messages"""
+        unread_list = self.app.notification_service.get_unread(self.user.username)
+        if len(unread_list) > 0:
+            self.btn_notif.configure(text=f"🔔 Notifications ({len(unread_list)})", fg_color="#e67e22")
+        else:
+            self.btn_notif.configure(text="🔔 Notifications", fg_color="#34495e")
 
-        eng_days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-        selector = ctk.CTkComboBox(dialog, values=eng_days, width=180, state="readonly")
-        selector.set("Select Day")
-        selector.pack(pady=10)
+    def show_notifications(self):
+        """Opens a window to see all unread messages with a scrollable view"""
+        unread_items = self.app.notification_service.get_unread(self.user.username)
+        notif_window = ctk.CTkToplevel(self.app)
+        notif_window.title("Manager Notifications")
+        notif_window.geometry("400x350")
+        notif_window.grab_set()
 
-        def confirm():
-            val = selector.get()
-            if val != "Select Day":
-                # Manager's request goes to 'Pending Boss' status via service
-                self.send_to_boss("Leave", val)
-                dialog.destroy()
+        if not unread_items:
+            ctk.CTkLabel(notif_window, text="No new messages 📭", text_color="gray").pack(pady=40)
+        else:
+            scroll_frame = ctk.CTkScrollableFrame(notif_window, fg_color="transparent")
+            scroll_frame.pack(fill="both", expand=True, padx=10, pady=(10, 5))
 
-        ctk.CTkButton(dialog, text="Submit Request", fg_color="#f39c12", command=confirm).pack(pady=15)
+            for item in unread_items:
+                notif_box = ctk.CTkFrame(scroll_frame, fg_color="#34495e", corner_radius=5)
+                notif_box.pack(fill="x", pady=5, padx=5)
+                ctk.CTkLabel(notif_box, text=f"• {item.message}", wraplength=320, justify="left").pack(pady=10, padx=10,
+                                                                                                       anchor="w")
 
-    def open_salary_dialog(self):
-        """Input dialog for the Manager to request their own raise"""
-        dialog = ctk.CTkInputDialog(text="Enter raise details (e.g. 10%):", title="Salary Request")
-        info = dialog.get_input()
-        if info:
-            self.send_to_boss("Salary", info)
+            def mark_as_read():
+                self.app.notification_service.mark_all_read(self.user.username)
+                self.refresh_notif_badge()
+                notif_window.destroy()
 
-    def send_to_boss(self, r_type, detail):
-        """Forwards Manager's requests directly to the Boss"""
-        self.app.hr_service.submit_manager_request(self.user.username, r_type, detail)
-        self.app.notification_service.send(self.user.username, f"✅ Your {r_type} request sent to the Boss!")
+            ctk.CTkButton(notif_window, text="Mark All as Read", command=mark_as_read, fg_color="#3498db").pack(
+                side="bottom", pady=15)
+
+    def make_own_request(self, req_type):
+        """Handles Manager's own leave and salary requests directly to Boss. Allows updating."""
+
+        self.app.db_manager.cursor.execute(
+            "SELECT id, detail FROM requests WHERE sender_name=? AND request_type=? AND status='Pending Boss'",
+            (self.user.username, req_type)
+        )
+        existing_req = self.app.db_manager.cursor.fetchone()
+
+        req_win = ctk.CTkToplevel(self.app)
+        display_title = "Leave" if req_type == "Leave" else "Salary Raise"
+        req_win.geometry("300x260")
+        req_win.grab_set()
+        req_win.attributes("-topmost", True)
+
+        if existing_req:
+            req_win.title(f"Update Pending {display_title}")
+            ctk.CTkLabel(req_win, text="⚠️ You already have a pending request!", text_color="#f39c12",
+                         font=("Arial", 12, "bold")).pack(pady=(15, 0))
+            ctk.CTkLabel(req_win, text="Waiting for Boss approval.", text_color="gray", font=("Arial", 11)).pack(
+                pady=(0, 5))
+            ctk.CTkLabel(req_win, text="You can update it below:", font=("Arial", 13, "bold")).pack(pady=(10, 5))
+        else:
+            req_win.title(f"New {display_title} Request")
+            prompt_text = "Select day for leave:" if req_type == "Leave" else "Enter details (e.g. 10%):"
+            ctk.CTkLabel(req_win, text=prompt_text, font=("Arial", 13, "bold")).pack(pady=(20, 5))
+
+        user_input = None
+        if req_type == "Leave":
+            days_list = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+            user_input = ctk.CTkComboBox(req_win, values=days_list, width=180, state="readonly")
+            if existing_req:
+                user_input.set(existing_req[1])
+            else:
+                user_input.set("Select Day")
+            user_input.pack(pady=10)
+        else:
+            user_input = ctk.CTkEntry(req_win, placeholder_text="Explain here...", width=200)
+            if existing_req:
+                user_input.insert(0, existing_req[1])
+            user_input.pack(pady=10)
+
+        def submit_action():
+            detail = user_input.get()
+            if req_type == "Leave" and detail == "Select Day": return
+            if not detail.strip(): return
+
+            if existing_req:
+                req_id = existing_req[0]
+                self.app.db_manager.cursor.execute("UPDATE requests SET detail=? WHERE id=?", (detail, req_id))
+                self.app.db_manager.conn.commit()
+            else:
+                self.app.hr_service.submit_manager_request(self.user.username, req_type, detail)
+
+            req_win.destroy()
+
+        color = "#f39c12" if req_type == "Leave" else "#8e44ad"
+        btn_text = "Update Request" if existing_req else "Send Request"
+
+        ctk.CTkButton(req_win, text=btn_text, command=submit_action, fg_color=color).pack(pady=15)
 
     def open_all_boards(self):
         """Board to communicate with all department staff"""
         board_win = ctk.CTkToplevel(self.app)
         board_win.title("Global Communication Board")
-        board_win.geometry("500x550")
+        board_win.geometry("500x600")
         board_win.grab_set()
 
         ctk.CTkLabel(board_win, text="📝 Departmental Communication", font=("Arial", 18, "bold")).pack(pady=10)
 
-        note_scroll = ctk.CTkScrollableFrame(board_win, fg_color="#2c3e50")
-        note_scroll.pack(fill="both", expand=True, padx=10, pady=10)
+        # --- YENİ EKLENEN FİLTRE ALANI ---
+        filter_frame = ctk.CTkFrame(board_win, fg_color="transparent")
+        filter_frame.pack(fill="x", padx=10, pady=(0, 5))
 
-        def refresh():
+        ctk.CTkLabel(filter_frame, text="Filter by Target:", font=("Arial", 12, "bold")).pack(side="left", padx=(5, 10))
+
+        roles = ["All", "Waiter", "Barista", "Cashier", "Chef", "Cleaner"]
+        filter_combo = ctk.CTkComboBox(filter_frame, values=roles, width=130, state="readonly",
+                                       command=lambda e: refresh())
+        filter_combo.set("All")
+        filter_combo.pack(side="left")
+        # ---------------------------------
+
+        note_scroll = ctk.CTkScrollableFrame(board_win, fg_color="#2c3e50")
+        note_scroll.pack(fill="both", expand=True, padx=10, pady=5)
+
+        def refresh(*args):
             for child in note_scroll.winfo_children():
                 child.destroy()
 
             all_notes = self.app.note_service.get_notes_for_user(self.user.role)
-            if not all_notes:
-                ctk.CTkLabel(note_scroll, text="No notes posted yet.", text_color="gray").pack(pady=20)
-            else:
+            selected_filter = filter_combo.get()
+
+            has_notes = False
+            if all_notes:
                 for n in all_notes:
+                    # Filtreleme mantığı
+                    if selected_filter != "All" and n.target_role != selected_filter:
+                        continue
+
+                    has_notes = True
                     card = ctk.CTkFrame(note_scroll, fg_color="#34495e", corner_radius=8)
                     card.pack(fill="x", pady=5, padx=5)
                     header_txt = f"👤 {n.sender_name} ➔ [{n.target_role}] ({n.date})"
@@ -207,6 +288,8 @@ class ManagerDashboard:
                     ctk.CTkLabel(card, text=n.content, font=("Arial", 12), anchor="w", wraplength=430).pack(fill="x",
                                                                                                             padx=10,
                                                                                                             pady=(0, 5))
+            if not has_notes:
+                ctk.CTkLabel(note_scroll, text="No notes found for this filter.", text_color="gray").pack(pady=20)
 
         refresh()
 

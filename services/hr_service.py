@@ -26,15 +26,32 @@ class HRService:
             if app_data:
                 name, role = app_data
                 clean_name = name.lower().strip().replace(" ", "")
-                # Automatic account generation: role + name (e.g., waiter_nazli)
-                username = f"{role.lower()}_{clean_name}"
-                password = f"{clean_name}123"
+
+                # --- İSİM ÇAKIŞMASI KONTROL DÖNGÜSÜ ---
+                base_username = f"{role.lower()}_{clean_name}"
+                final_username = base_username
+                counter = 1
+
+                while True:
+                    # Veritabanında bu username var mı diye bakıyoruz
+                    self.db.cursor.execute("SELECT id FROM users WHERE username=?", (final_username,))
+                    if not self.db.cursor.fetchone():
+                        # Eğer yoksa (boşsa), döngüden çık, doğru ismi bulduk!
+                        break
+
+                    # Eğer varsa, sayacı 1 artır ve ismin sonuna ekle (Örn: waiter_ahmet2)
+                    counter += 1
+                    final_username = f"{base_username}{counter}"
+
+                # Şifreyi de yeni isme göre belirleyelim (Ahmet2 ise şifresi ahmet2123 olsun)
+                password_prefix = f"{clean_name}{counter if counter > 1 else ''}"
+                password = f"{password_prefix}123"
 
                 try:
                     # New employees start with a default salary and Monday off-day
                     self.db.cursor.execute(
                         "INSERT INTO users (username, password, role, salary, manager_id, off_day) VALUES (?, ?, ?, ?, ?, ?)",
-                        (username, password, role, 20000.0, 2, "Monday")
+                        (final_username, password, role, 20000.0, 2, "Monday")
                     )
                 except Exception as e:
                     print(f"Error creating user: {e}")
@@ -75,12 +92,14 @@ class HRService:
         self.db.conn.commit()
         return sender, req_type, new_status
 
-    def set_off_day_by_username(self, username, off_day):
-        self.db.cursor.execute("UPDATE users SET off_day=? WHERE username=?", (off_day, username))
+    def set_off_day_by_username(self, username, new_day):
+        """Kullanıcı adına göre izin gününü günceller (Patron Onayı İçin)"""
+        self.db.cursor.execute("UPDATE users SET off_day=? WHERE username=?", (new_day, username))
         self.db.conn.commit()
 
-    def set_off_day_by_id(self, user_id, off_day):
-        self.db.cursor.execute("UPDATE users SET off_day=? WHERE id=?", (off_day, user_id))
+    def set_off_day_by_id(self, user_id, new_day):
+        """Kullanıcı ID'sine göre izin gününü günceller (Patron Direkt Değiştirirse)"""
+        self.db.cursor.execute("UPDATE users SET off_day=? WHERE id=?", (new_day, user_id))
         self.db.conn.commit()
 
     def fire_employee(self, user_id):
@@ -147,7 +166,6 @@ class HRService:
 
     def get_role_count(self, role_name):
         query = "SELECT COUNT(*) FROM users WHERE role = ?"
-        # Eğer DatabaseManager içinde fetch_one yoksa cursor üzerinden yapıyoruz:
         self.db.cursor.execute(query, (role_name,))
         result = self.db.cursor.fetchone()
         return result[0] if result else 0

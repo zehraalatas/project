@@ -32,25 +32,26 @@ class AuthService:
         return None
 
     def update_credentials(self, user_id, new_username, new_password):
-        """Validates and updates user login information"""
+        """Kullanıcı adı ve şifreyi günceller, isim çakışmasını engeller."""
 
-        # Using ValidationService for business logic (Lesson Topic: Service Separation)
-        if not self.validator.is_valid_username(new_username):
-            return False, "Username must be at least 3 characters long!"
-
-        if not self.validator.is_valid_password(new_password):
-            return False, "Password must be at least 6 characters long!"
-
-        # Check if the new username is already taken by someone else
-        check_query = "SELECT id FROM users WHERE username=? AND id!=?"
-        self.db.cursor.execute(check_query, (new_username, user_id))
+        # 1. İSİM ÇAKIŞMASI KONTROLÜ
+        # Veritabanında bu 'new_username'e sahip BAŞKA BİRİ (id != user_id) var mı?
+        self.db.cursor.execute(
+            "SELECT id FROM users WHERE username=? AND id!=?",
+            (new_username, user_id)
+        )
 
         if self.db.cursor.fetchone():
-            return False, "This username is already taken!"
+            # Eğer kayıt dönerse, bu isim başkası tarafından kullanılıyor demektir.
+            return False, "⚠️ This username is already taken!"
 
-        # Applying the update
-        update_query = "UPDATE users SET username=?, password=? WHERE id=?"
-        self.db.cursor.execute(update_query, (new_username, new_password, user_id))
-        self.db.conn.commit()
-
-        return True, "Credentials updated successfully!"
+        # 2. GÜNCELLEME İŞLEMİ (Eğer isim boşta ise)
+        try:
+            self.db.cursor.execute(
+                "UPDATE users SET username=?, password=? WHERE id=?",
+                (new_username, new_password, user_id)
+            )
+            self.db.conn.commit()
+            return True, "✅ Credentials updated successfully!"
+        except Exception as e:
+            return False, f"Database error: {e}"

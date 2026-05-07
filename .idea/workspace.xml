@@ -6,10 +6,17 @@
   <component name="ChangeListManager">
     <list default="true" id="d4d7db15-82ef-4b19-a8ec-6ac1ead54eff" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/PersonnelManagementSystem.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/PersonnelManagementSystem.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/dataSources/5e01b243-5c64-49c9-87ba-650c27e9f5b8.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources/5e01b243-5c64-49c9-87ba-650c27e9f5b8.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/dataSources/data_sources_history.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources/data_sources_history.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/cafe_system.db" beforeDir="false" afterPath="$PROJECT_DIR$/cafe_system.db" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/gui/login_screen.py" beforeDir="false" afterPath="$PROJECT_DIR$/gui/login_screen.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/database/db_manager.py" beforeDir="false" afterPath="$PROJECT_DIR$/database/db_manager.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/gui/employee_dashboard.py" beforeDir="false" afterPath="$PROJECT_DIR$/gui/employee_dashboard.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/gui/manager_dashboard.py" beforeDir="false" afterPath="$PROJECT_DIR$/gui/manager_dashboard.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/gui/patron_dashboard.py" beforeDir="false" afterPath="$PROJECT_DIR$/gui/patron_dashboard.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/auth_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/auth_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/hr_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/hr_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/salary_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/salary_service.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -126,6 +133,10 @@
       <workItem from="1777878488933" duration="2499000" />
       <workItem from="1777888710233" duration="8754000" />
       <workItem from="1778004039012" duration="3133000" />
+      <workItem from="1778098081934" duration="3129000" />
+      <workItem from="1778142923076" duration="3373000" />
+      <workItem from="1778146468168" duration="143000" />
+      <workItem from="1778152225850" duration="7014000" />
     </task>
     <servers />
   </component>
@@ -133,7 +144,7 @@
     <option name="version" value="3" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
+    <SUITE FILE_PATH="coverage/project$main.coverage" NAME="main Coverage Results" MODIFIED="1778159100330" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/PersonnelManagementSystem$main.coverage" NAME="main Coverage Results" MODIFIED="1778005514710" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/project$main.coverage" NAME="main Coverage Results" MODIFIED="1777897000046" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>

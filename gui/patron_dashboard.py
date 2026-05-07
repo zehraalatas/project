@@ -33,7 +33,7 @@ class PatronDashboard:
         # Footer buttons
         self.board_btn = ctk.CTkButton(app, text="📝 Company Notice Board", command=self.open_notice_board,
                                        fg_color="#8e44ad", width=200)
-        self.board_btn.pack(side="bottom", pady=(5, 10))
+        self.board_btn.pack(side="top", pady=(5, 10))
 
         self.logout_btn = ctk.CTkButton(app, text="Secure Logout", command=self.app.show_login_screen,
                                         fg_color="darkred")
@@ -166,20 +166,49 @@ class PatronDashboard:
                               command=lambda r=r_id, s=sender, rt=r_type, d=detail: self.final_confirm(r, s, rt, d)).pack(side="right", padx=10)
 
     def final_confirm(self, req_id, sender, r_type, detail):
-        """Processes the finalized step using English status"""
-        # Sending "Approved" to service, which marks it as "Finalized" for Boss
-        self.app.hr_service.update_request_status(req_id, "Approved", "Boss")
+        """Talebi onaylar ve sayfayı anında yeniler"""
 
         if r_type == "Leave":
-            self.app.hr_service.set_off_day_by_username(sender, detail)
-            msg = f"Your leave ({detail}) was finalized and approved by the Boss! ✅"
+            # 1. Kullanıcıyı bul
+            self.app.db_manager.cursor.execute("SELECT id, role FROM users WHERE username=?", (sender,))
+            user_info = self.app.db_manager.cursor.fetchone()
+
+            if user_info:
+                u_id, u_role = user_info
+
+                # Boss ve Manager hariç diğerleri için vardiya çakışması kontrolü
+                if u_role not in ('Boss', 'Manager'):
+                    is_valid, error_msg = self.app.hr_service.check_off_day_conflict(u_id, u_role, detail)
+
+                    if not is_valid:
+                        # KURAL: Eğer uygun değilse işlemi burada kes!
+                        pop = ctk.CTkToplevel(self.app)
+                        pop.title("Coverage Error")
+                        pop.geometry("300x150")
+                        pop.attributes("-topmost", True)
+                        ctk.CTkLabel(pop, text=f"⚠️ {error_msg}", text_color="#e74c3c", font=("Arial", 12, "bold"),
+                                     wraplength=260).pack(pady=20, padx=20)
+                        ctk.CTkButton(pop, text="OK", command=pop.destroy, fg_color="#34495e").pack()
+                        return  # İşlemi durdurur
+
+                # 2. SORUN YOKSA: İzin gününü güncelle
+                self.app.hr_service.set_off_day_by_username(sender, detail)
+                msg = f"Your leave ({detail}) was finalized and approved by the Boss! ✅"
+            else:
+                msg = "User not found! ❌"
         else:
             msg = "Your request was finalized and approved! ✅"
 
-        self.load_manager_approvals()
-        self.load_staff_management()
-        self.app.notification_service.send(sender, msg)
+        # 3. Talebin durumunu 'Finalized' yap
+        self.app.hr_service.update_request_status(req_id, "Approved", "Boss")
 
+        # 4. KRİTİK NOKTA: Arayüzü anında yenile
+        self.load_manager_approvals()  # Onaylar sekmesini yenile
+        self.load_staff_management()  # Personel & Maaş sekmesini yenile (İzin günü burada değişir)
+        self.update_stat_cards()  # Üstteki kartları yenile
+
+        # Bildirim gönder
+        self.app.notification_service.send(sender, msg)
     def load_job_applications(self):
         """Displays job applications with English status 'Pending'"""
         for widget in self.tab_applications.winfo_children(): widget.destroy()
@@ -301,9 +330,12 @@ class PatronDashboard:
             pop.title("Conflict Error")
             pop.geometry("300x150")
             pop.attributes("-topmost", True)
-            ctk.CTkLabel(pop, text=f"⚠️ {error_msg}", text_color="#e74c3c", font=("Arial", 12, "bold")).pack(pady=30,
-                                                                                                             padx=20)
+            ctk.CTkLabel(pop, text=f"⚠️ {error_msg}", text_color="#e74c3c", font=("Arial", 12, "bold"),
+                         wraplength=260).pack(pady=30, padx=20)
             ctk.CTkButton(pop, text="OK", command=pop.destroy, fg_color="#34495e").pack()
+
+            # --- YENİ EKLENEN KISIM: Hata varsa kutunun eski haline dönmesi için listeyi anında yenile! ---
+            self.load_staff_management()
             return
 
         # If valid, save the English day name to the database
@@ -331,29 +363,58 @@ class PatronDashboard:
     def open_notice_board(self):
         win = ctk.CTkToplevel(self.app)
         win.title("Notice Board")
-        win.geometry("500x550")
+        # Filtre sığsın diye pencereyi biraz uzattık (550'den 600'e)
+        win.geometry("500x600")
         win.grab_set()
 
         ctk.CTkLabel(win, text="📝 Global Communication Board", font=("Arial", 18, "bold")).pack(pady=10)
-        scroll = ctk.CTkScrollableFrame(win, fg_color="#2c3e50")
-        scroll.pack(fill="both", expand=True, padx=10, pady=10)
 
-        def redraw():
+        # --- YENİ EKLENEN FİLTRE ALANI ---
+        filter_frame = ctk.CTkFrame(win, fg_color="transparent")
+        filter_frame.pack(fill="x", padx=10, pady=(0, 5))
+
+        ctk.CTkLabel(filter_frame, text="Filter by Target:", font=("Arial", 12, "bold")).pack(side="left", padx=(5, 10))
+
+        roles = ["All", "Manager", "Waiter", "Barista", "Cashier", "Chef", "Cleaner"]
+
+        # Seçim değiştiğinde anında redraw() fonksiyonunu tetikler
+        filter_combo = ctk.CTkComboBox(filter_frame, values=roles, width=130, state="readonly",
+                                       command=lambda e: redraw())
+        filter_combo.set("All")
+        filter_combo.pack(side="left")
+        # ---------------------------------
+
+        scroll = ctk.CTkScrollableFrame(win, fg_color="#2c3e50")
+        scroll.pack(fill="both", expand=True, padx=10, pady=5)
+
+        # args ekledik çünkü Combobox command ile çalışırken parametre gönderir
+        def redraw(*args):
             for w in scroll.winfo_children(): w.destroy()
             notes = self.app.note_service.get_notes_for_user(self.user.role)
+            selected_filter = filter_combo.get()
+
+            has_notes = False
             for n in notes:
+                # Eğer "All" seçili değilse ve mesajın hedefi filtremizle uyuşmuyorsa bu mesajı atla (çizme)
+                if selected_filter != "All" and n.target_role != selected_filter:
+                    continue
+
+                has_notes = True
                 f = ctk.CTkFrame(scroll, fg_color="#34495e", corner_radius=5)
                 f.pack(fill="x", pady=5, padx=5)
                 head = f"👤 {n.sender_name} ➔ [{n.target_role}] ({n.date})"
                 ctk.CTkLabel(f, text=head, font=("Arial", 10, "bold"), text_color="#f1c40f").pack(anchor="w", padx=10)
                 ctk.CTkLabel(f, text=n.content, font=("Arial", 12), wraplength=430).pack(anchor="w", padx=10, pady=5)
 
+            if not has_notes:
+                ctk.CTkLabel(scroll, text="No notes found for this filter.", text_color="gray").pack(pady=20)
+
         redraw()
 
         inf = ctk.CTkFrame(win, fg_color="transparent")
         inf.pack(fill="x", padx=10, pady=10)
 
-        target = ctk.CTkComboBox(inf, values=["Waiter", "Barista", "Cashier", "Chef", "Cleaner"], width=110)
+        target = ctk.CTkComboBox(inf, values=["Manager", "Waiter", "Barista", "Cashier", "Chef", "Cleaner"], width=110)
         target.pack(side="left", padx=5)
 
         msg_in = ctk.CTkEntry(inf, placeholder_text="Type here...", width=250)

@@ -42,17 +42,24 @@ class SalaryService:
         # 2. Yeni maaşı hesapla
         new_salary = current_salary * (1 + (percentage / 100))
 
-        # 3. VERİTABANINI GÜNCELLE (En kritik yer)
+        # 3. VERİTABANINI GÜNCELLE
         self.db.cursor.execute("UPDATE users SET salary = ? WHERE id = ?", (new_salary, user_id))
 
-        # 4. KAYDET (Bu olmazsa maaş değişmez!)
-        self.db.connection.commit()
+        # 4. MAAŞ GEÇMİŞİNE (LOG) KAYDET
+        import datetime
+        today = datetime.date.today().isoformat()
+        self.db.cursor.execute(
+            "INSERT INTO salary_records (user_id, old_salary, new_salary, percent, date) VALUES (?, ?, ?, ?, ?)",
+            (user_id, current_salary, new_salary, percentage, today)
+        )
+
+        # 5. KAYDET (HATA BURADAYDI: connection yerine conn olmalı!)
+        self.db.conn.commit()
 
         # Geriye bir nesne döndür (Dashboard'un anlaması için)
         from dataclasses import make_dataclass
         Result = make_dataclass("Result", [("new_salary", float)])
         return Result(new_salary=new_salary)
-
     def get_history(self, user_id):
         """Retrieves all salary raise logs for a specific user"""
         query = """

@@ -102,8 +102,8 @@ class DatabaseManager:
         # Using a List of Tuples for easy management (Lesson Topic: Collections)
         default_accounts = [
             ('admin', 'admin123', 'Boss', 500000.0, None, 'Monday'),
-            ('manager1', 'manager123', 'Manager', 35000.0, None, 'Monday'),
-            ('waiter1', 'waiter123', 'Waiter', 20000.0, 2, 'Monday')
+            ('manager', 'manager123', 'Manager', 35000.0, None, 'Monday'),
+            ('zehra', 'zehra123', 'Waiter', 20000.0, 2, 'Monday')
         ]
 
         for user_data in default_accounts:
