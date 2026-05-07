@@ -1,7 +1,7 @@
 from models.cv import CV
 from models.application import Application
 from models.shift import Shift
-from datetime import datetime
+import datetime as dt
 import json
 
 
@@ -82,13 +82,37 @@ class HRService:
                 # İsmin ilk harfi + soyisim + 123
                 password = f"{clean_name}123"
 
+                # --- YENİ EKLENEN: EN UYGUN İZİN GÜNÜNÜ BULMA MANTIĞI ---
+                days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+                best_day = "Monday"
+                min_count = float('inf')
+
+                for d in days:
+                    # Bu rolde, bu gün izinli olan kaç kişi var?
+                    self.db.cursor.execute(
+                        "SELECT COUNT(*) FROM users WHERE role=? AND off_day=?",
+                        (role, d)
+                    )
+                    count = self.db.cursor.fetchone()[0]
+
+                    # Eğer bu gün diğerlerinden daha az yoğunsa (izinli sayısı azsa), bunu seç
+                    if count < min_count:
+                        min_count = count
+                        best_day = d
+
+                    # Eğer 0 olan bir gün bulursan aramayı kesebilirsin, en uygunu budur
+                    if count == 0:
+                        best_day = d
+                        break
+                # --------------------------------------------------------
+
                 try:
-                    # Yeni çalışanı varsayılan maaş (20.000) ve izin günüyle ekliyoruz
+                    # Yeni çalışanı varsayılan maaş (20.000) ve HESAPLANAN izin günüyle (best_day) ekliyoruz
                     self.db.cursor.execute(
                         "INSERT INTO users (username, password, role, salary, manager_id, off_day) VALUES (?, ?, ?, ?, ?, ?)",
-                        (final_username, password, role, 20000.0, 2, "Monday")
+                        (final_username, password, role, 20000.0, 2, best_day)
                     )
-                    print(f"Account Created: {final_username} / Password: {password}")
+                    print(f"Account Created: {final_username} / Password: {password} / Off-Day: {best_day}")
                 except Exception as e:
                     print(f"Error creating user: {e}")
 
@@ -176,7 +200,7 @@ class HRService:
 
     def log_status(self, user_id, username, status):
         """Logs daily working status into the shifts table"""
-        today = datetime.date.today().isoformat()
+        today = dt.date.today().isoformat()
 
         # Prevent duplicate logs for the same day
         self.db.cursor.execute("SELECT id FROM shifts WHERE user_id=? AND date=?", (user_id, today))
@@ -205,3 +229,4 @@ class HRService:
         self.db.cursor.execute(query, (role_name,))
         result = self.db.cursor.fetchone()
         return result[0] if result else 0
+

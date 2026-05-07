@@ -17,10 +17,12 @@ class ManagerDashboard:
 
         self.profile_tab = self.tabs.add("👤 My Profile")
         self.request_tab = self.tabs.add("📨 Staff Requests")
+        self.coverage_tab = self.tabs.add("📅 Shift Coverage")
 
         # Load initial data
         self.load_staff_requests()
         self.load_manager_profile()
+        self.load_coverage_tracker()
 
         # Logout button
         self.btn_logout = ctk.CTkButton(app, text="Logout", command=self.app.show_login_screen,
@@ -312,3 +314,80 @@ class ManagerDashboard:
                 refresh()
 
         ctk.CTkButton(bottom_bar, text="Post", width=70, command=post, fg_color="#2ecc71").pack(side="right", padx=5)
+
+    def load_coverage_tracker(self):
+        """Manager için gün bazlı personel durum tablosu (Present/Absent)"""
+        for widget in self.coverage_tab.winfo_children():
+            widget.destroy()
+
+        ctk.CTkLabel(self.coverage_tab, text="📅 WEEKLY COVERAGE TRACKER",
+                     font=("Arial", 16, "bold"), text_color="#3498db").pack(pady=(15, 5))
+
+        # Filtre Paneli (Combobox)
+        filter_frame = ctk.CTkFrame(self.coverage_tab, fg_color="transparent")
+        filter_frame.pack(fill="x", padx=25, pady=(0, 10))
+
+        ctk.CTkLabel(filter_frame, text="Select Day:", font=("Arial", 12, "bold")).pack(side="left", padx=(0, 10))
+
+        days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        import datetime
+        current_day = datetime.datetime.now().strftime("%A")
+
+        day_filter = ctk.CTkComboBox(filter_frame, values=days, width=150, state="readonly",
+                                     command=lambda e: refresh_list(e))
+        day_filter.set(current_day)
+        day_filter.pack(side="left")
+
+        # Tablo Başlıkları
+        head_frame = ctk.CTkFrame(self.coverage_tab, fg_color="transparent")
+        head_frame.pack(fill="x", padx=25)
+
+        ctk.CTkLabel(head_frame, text="Role", font=("Arial", 11, "bold"), text_color="gray", width=120,
+                     anchor="w").pack(side="left")
+        ctk.CTkLabel(head_frame, text="Employee", font=("Arial", 11, "bold"), text_color="gray", width=150,
+                     anchor="w").pack(side="left")
+        ctk.CTkLabel(head_frame, text="Status", font=("Arial", 11, "bold"), text_color="gray").pack(side="right",
+                                                                                                    padx=20)
+
+        rc = ctk.CTkScrollableFrame(self.coverage_tab, border_width=1, border_color="#34495e")
+        rc.pack(fill="both", expand=True, padx=20, pady=5)
+
+        def refresh_list(selected_day):
+            for widget in rc.winfo_children(): widget.destroy()
+
+            # Manager ve Boss haricindeki tüm çalışanları çekiyoruz
+            self.app.db_manager.cursor.execute(
+                "SELECT username, role, off_day FROM users WHERE role NOT IN ('Boss', 'Manager')"
+            )
+            all_staff = self.app.db_manager.cursor.fetchall()
+
+            if not all_staff:
+                ctk.CTkLabel(rc, text="No employees found.", text_color="gray").pack(pady=20)
+                return
+
+            for sname, srole, soff_day in all_staff:
+                row = ctk.CTkFrame(rc, fg_color="#34495e", corner_radius=4)
+                row.pack(fill="x", pady=2, padx=5)
+
+                ctk.CTkLabel(row, text=f"🏷 {srole}", font=("Arial", 12), width=120, anchor="w").pack(side="left",
+                                                                                                     padx=10)
+                ctk.CTkLabel(row, text=sname.capitalize(), font=("Arial", 12, "bold"), width=150, anchor="w").pack(
+                    side="left")
+
+                role_count = self.app.hr_service.get_role_count(srole)
+
+                if role_count <= 1:
+                    # Departmanda tek kişi varsa mecburen her gün çalışıyor sayılır
+                    status_text = "PRESENT (ONLY) ✅"
+                    status_color = "#f39c12"  # Turuncu
+                elif soff_day == selected_day:
+                    status_text = "ABSENT ❌"
+                    status_color = "#e74c3c"
+                else:
+                    status_text = "PRESENT ✅"
+                    status_color = "#2ecc71"
+                ctk.CTkLabel(row, text=status_text, text_color=status_color, font=("Arial", 11, "bold")).pack(
+                    side="right", padx=15)
+
+        # İlk açılışta bugünün listesini yükle
+        refresh_list(day_filter.get())

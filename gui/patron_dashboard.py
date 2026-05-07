@@ -80,7 +80,7 @@ class PatronDashboard:
             p_id, name, role, salary, current_off = person
 
             # --- YENİ MANTIK: O rolde kaç kişi var? ---
-            # HRService içindeki metodu çağırıyoruz (Henüz yazmadıysan aşağıya ekledim)
+            # HRService içindeki metodu çağırıyoruz
             role_count = self.app.hr_service.get_role_count(role)
 
             row = ctk.CTkFrame(scroll, corner_radius=8, border_width=1, border_color="#34495e")
@@ -101,10 +101,18 @@ class PatronDashboard:
             custom_entry = ctk.CTkEntry(row, width=70, placeholder_text="Amt")
             custom_entry.pack(side="left", padx=(10, 2))
 
+            # Mevcut Artı (+) Butonu
             ctk.CTkButton(row, text="+", width=30, fg_color="#2ecc71",
                           command=lambda i=p_id, s=salary, e=custom_entry: self.apply_custom_salary(i, s, e.get(),
                                                                                                     1)).pack(
                 side="left", padx=2)
+
+            # --- YENİ EKLENEN EKSİ (-) BUTONU ---
+            ctk.CTkButton(row, text="-", width=30, fg_color="#e74c3c",
+                          command=lambda i=p_id, s=salary, e=custom_entry: self.apply_custom_salary(i, s, e.get(),
+                                                                                                    -1)).pack(
+                side="left", padx=2)
+            # ------------------------------------
 
             # --- DYNAMIC AREA İS HERE ---
             if role_count <= 1 and role not in ('Boss', 'Manager'):
@@ -120,6 +128,7 @@ class PatronDashboard:
 
                 ctk.CTkButton(row, text="Save", width=70, fg_color="#3498db",
                               command=lambda i=p_id, c=combo: self.update_day(i, c.get())).pack(side="left", padx=5)
+
     def apply_custom_salary(self, p_id, current_salary, amount_str, multiplier):
         if not amount_str.replace('.', '', 1).isdigit():
             win = ctk.CTkToplevel(self.app)
@@ -159,6 +168,10 @@ class PatronDashboard:
             eng_type = type_map.get(r_type, r_type)
             ctk.CTkLabel(frame, text=f"👤 {sender.capitalize()} - {eng_type} ({detail})",
                          font=("Arial", 14, "bold")).pack(side="left", padx=20, pady=10)
+
+            ctk.CTkButton(frame, text="Reject ❌", width=90, fg_color="#e74c3c",
+                          command=lambda r=r_id, s=sender, rt=r_type: self.reject_request(r, s, rt)).pack(side="right",
+                                                                                                          padx=10)
 
             if r_type == "Salary":
                 ctk.CTkButton(frame, text="Set Raise", width=120, fg_color="#2ecc71",
@@ -211,6 +224,19 @@ class PatronDashboard:
 
         # Bildirim gönder
         self.app.notification_service.send(sender, msg)
+
+    def reject_request(self, req_id, sender, r_type):
+        """Rejects a leave or salary request and notifies the user"""
+        # Veritabanında durumu 'Rejected' olarak güncelle
+        self.app.hr_service.update_request_status(req_id, "Rejected", "Boss")
+
+        # Talep türüne göre çalışana gidecek kırmızı bildirim mesajını hazırla
+        display_type = "Leave" if r_type == "Leave" else "Salary Raise"
+        msg = f"Your {display_type} request was rejected by the Boss. ❌"
+
+        # Bildirimi gönder ve ekranı yenile
+        self.app.notification_service.send(sender, msg)
+        self.load_manager_approvals()
 
     def load_job_applications(self):
         for widget in self.tab_applications.winfo_children():
@@ -356,9 +382,25 @@ class PatronDashboard:
                 "INSERT INTO salary_records (user_id, old_salary, new_salary, percent, date) VALUES (?, ?, ?, ?, ?)",
                 (p_id, current_salary, new_val, percent, date_str)
             )
-        except: pass
+        except:
+            pass
 
         self.app.db_manager.conn.commit()
+
+        # --- YENİ EKLENEN BİLDİRİM KISMI ---
+        self.app.db_manager.cursor.execute("SELECT username FROM users WHERE id=?", (p_id,))
+        result = self.app.db_manager.cursor.fetchone()
+
+        if result:
+            target_user = result[0]
+            if amount > 0:
+                msg = f"Boss made an update to your salary! 📈 Your new salary is: {new_val:,.0f} ₺"
+            else:
+                msg = f"Boss made a deduction from your salary! 📉 Your new salary is: {new_val:,.0f} ₺"
+
+            self.app.notification_service.send(target_user, msg)
+        # -----------------------------------
+
         self.load_staff_management()
         self.update_stat_cards()
 
@@ -431,7 +473,7 @@ class PatronDashboard:
         ctk.CTkButton(inf, text="Post", width=70, command=send, fg_color="#2ecc71").pack(side="right")
 
     def load_shift_reports(self):
-        """Refreshes the personnel management and daily shift logs with a cleaner UI."""
+        """Refreshes the personnel management and weekly coverage logs with a cleaner UI."""
         # Sekmeyi temizle
         for widget in self.tab_reports.winfo_children():
             widget.destroy()
@@ -443,7 +485,7 @@ class PatronDashboard:
         sc = ctk.CTkScrollableFrame(self.tab_reports, height=180, border_width=1, border_color="#34495e")
         sc.pack(fill="x", padx=20, pady=5)
 
-        self.app.db_manager.cursor.execute("SELECT id, username, role FROM users WHERE role != 'Boss'")
+        self.app.db_manager.cursor.execute("SELECT id, username, role FROM users WHERE role NOT IN ('Boss','Manager')")
         staff = self.app.db_manager.cursor.fetchall()
 
         for sid, sname, srole in staff:
@@ -460,14 +502,32 @@ class PatronDashboard:
                           hover_color="#c0392b", width=100, height=28,
                           command=lambda i=sid: self.fire_staff(i)).pack(side="right", padx=10, pady=5)
 
-        # --- SECTION 2: DAILY SHIFT LOGS ---
-        ctk.CTkLabel(self.tab_reports, text="📅 DAILY ATTENDANCE LOGS",
+        # --- SECTION 2: WEEKLY COVERAGE TRACKER (DİNAMİK FİLTRE) ---
+        ctk.CTkLabel(self.tab_reports, text="📅 WEEKLY COVERAGE TRACKER",
                      font=("Arial", 16, "bold"), text_color="#3498db").pack(pady=(25, 5))
+
+        # Filtre Paneli (Combobox)
+        filter_frame = ctk.CTkFrame(self.tab_reports, fg_color="transparent")
+        filter_frame.pack(fill="x", padx=25, pady=(0, 10))
+
+        ctk.CTkLabel(filter_frame, text="Select Day:", font=("Arial", 12, "bold")).pack(side="left", padx=(0, 10))
+
+        days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        import datetime
+        current_day = datetime.datetime.now().strftime("%A")
+
+        # Seçim yapıldığında refresh_list fonksiyonunu otomatik çağırır
+        day_filter = ctk.CTkComboBox(filter_frame, values=days, width=150, state="readonly",
+                                     command=lambda e: refresh_list(e))
+        day_filter.set(current_day)  # Varsayılan olarak bugünü gösterir
+        day_filter.pack(side="left")
 
         # Başlık Satırı (Tablo gibi görünmesi için)
         head_frame = ctk.CTkFrame(self.tab_reports, fg_color="transparent")
         head_frame.pack(fill="x", padx=25)
-        ctk.CTkLabel(head_frame, text="Date", font=("Arial", 11, "bold"), text_color="gray", width=120,
+
+        # "Date" yerine "Role" yaptık çünkü tarih zaten üstten seçiliyor
+        ctk.CTkLabel(head_frame, text="Role", font=("Arial", 11, "bold"), text_color="gray", width=120,
                      anchor="w").pack(side="left")
         ctk.CTkLabel(head_frame, text="Employee", font=("Arial", 11, "bold"), text_color="gray", width=150,
                      anchor="w").pack(side="left")
@@ -477,29 +537,52 @@ class PatronDashboard:
         rc = ctk.CTkScrollableFrame(self.tab_reports, border_width=1, border_color="#34495e")
         rc.pack(fill="both", expand=True, padx=20, pady=5)
 
-        shifts = self.app.hr_service.get_all_shifts()
+        def refresh_list(selected_day):
+            """Tüm personeli listeler ve seçilen güne göre durumlarını (Present/Absent) belirler"""
+            for widget in rc.winfo_children(): widget.destroy()
 
-        if not shifts:
-            ctk.CTkLabel(rc, text="No shift records found for today.", text_color="gray").pack(pady=20)
-        else:
-            for s in shifts:
+            # Veritabanından tüm çalışanları off_day bilgisi ile birlikte çek
+            self.app.db_manager.cursor.execute(
+                "SELECT username, role, off_day FROM users WHERE role NOT IN ('Boss', 'Manager')"
+            )
+            all_staff = self.app.db_manager.cursor.fetchall()
+
+            if not all_staff:
+                ctk.CTkLabel(rc, text="No employees found.", text_color="gray").pack(pady=20)
+                return
+
+            for sname, srole, soff_day in all_staff:
                 row = ctk.CTkFrame(rc, fg_color="#34495e", corner_radius=4)
                 row.pack(fill="x", pady=2, padx=5)
 
-                # Tarih
-                ctk.CTkLabel(row, text=f"🗓 {s.date}", font=("Arial", 12), width=120, anchor="w").pack(side="left",
-                                                                                                      padx=10)
+                # Departman/Rol
+                ctk.CTkLabel(row, text=f"🏷 {srole}", font=("Arial", 12), width=120, anchor="w").pack(side="left",
+                                                                                                     padx=10)
 
                 # Personel Adı
-                ctk.CTkLabel(row, text=s.username.capitalize(), font=("Arial", 12, "bold"), width=150, anchor="w").pack(
+                ctk.CTkLabel(row, text=sname.capitalize(), font=("Arial", 12, "bold"), width=150, anchor="w").pack(
                     side="left")
 
-                # Durum (Renkli)
-                status_color = "#2ecc71" if s.status == "Working" else "#e74c3c"
-                status_text = "PRESENT ✅" if s.status == "Working" else "ABSENT ❌"
+                # --- YENİ AKILLI DURUM HESAPLAMA ---
+                role_count = self.app.hr_service.get_role_count(srole)
 
-                ctk.CTkLabel(row, text=status_text, text_color=status_color, font=("Arial", 11, "bold")).pack(
-                    side="right", padx=15)
+                if role_count <= 1:
+                    # Departmanda tek kişi varsa mecburen her gün çalışıyor sayılır
+                    status_text = "PRESENT (ONLY) ✅"
+                    status_color = "#f39c12"  # Turuncu
+                elif soff_day == selected_day:
+                    status_text = "ABSENT ❌"
+                    status_color = "#e74c3c"
+                else:
+                    status_text = "PRESENT ✅"
+                    status_color = "#2ecc71"
+
+                ctk.CTkLabel(row, text=status_text, text_color=status_color, font=("Arial", 11, "bold")).pack(side="right",
+                                                                                                              padx=15)
+
+        # İlk açılışta bugünün listesini yükle
+        refresh_list(day_filter.get())
+
     def fire_staff(self, p_id):
         self.app.hr_service.fire_employee(p_id)
         self.load_staff_management()
@@ -509,10 +592,6 @@ class PatronDashboard:
     def on_tab_change(self):
         if self.tabview.get() == "📊 Performance Tracking":
             self.load_shift_reports()
-
-    # PatronDashboard sınıfının içine eklenecek metodlar:
-
-
 
     def show_cv_popup(self, app_obj):
         win = ctk.CTkToplevel(self.app)
