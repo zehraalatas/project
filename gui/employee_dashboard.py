@@ -12,7 +12,7 @@ class EmployeeDashboard:
         self.user_schedule = Schedule(self.user.user_id, self.user.off_day)
 
         # --- Top Info Panel ---
-        self.header = ctk.CTkLabel(app, text=f"☕ Welcome {self.user.username.capitalize()}",
+        self.header = ctk.CTkLabel(app, text=f"☕ Welcome {self.user.get_display_name()}",
                                    font=("Arial", 26, "bold"))
         self.header.pack(pady=(30, 10))
 
@@ -58,7 +58,7 @@ class EmployeeDashboard:
             ctk.CTkLabel(self.grid_frame, text=short_name, font=("Arial", 12, "bold"), width=70).grid(
                 row=0, column=i, padx=5, pady=5)
 
-            if staff_count <= 1:
+            if not self.user.can_request_leave(staff_count):
                 box_text = "No Off"
                 box_color = "#7f8c8d"
             elif day == self.user.off_day:
@@ -79,7 +79,7 @@ class EmployeeDashboard:
         self.request_area = ctk.CTkFrame(app, fg_color="transparent")
         self.request_area.pack(pady=10)
 
-        if staff_count <= 1:
+        if not self.user.can_request_leave(staff_count):
             ctk.CTkButton(self.request_area, text="Day Off (Locked)", width=160, height=40, fg_color="gray",
                           state="disabled").grid(row=0, column=0, padx=10)
         else:
@@ -234,7 +234,7 @@ class EmployeeDashboard:
             if done:
                 msg_label.configure(text=info, text_color="#2ecc71")
                 self.user.username = u
-                self.header.configure(text=f"☕ Welcome {u.capitalize()}")
+                self.header.configure(text=f"☕ Welcome {self.user.get_display_name()}")
                 set_win.after(1500, set_win.destroy)
             else:
                 msg_label.configure(text=info, text_color="#e74c3c")

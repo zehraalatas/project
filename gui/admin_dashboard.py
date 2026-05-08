@@ -2,7 +2,7 @@ import customtkinter as ctk
 import datetime
 import json  # Dosyanın en başında mutlaka olmalı
 
-class PatronDashboard:
+class AdminDashboard:
     def __init__(self, app):
         self.app = app
         self.user = self.app.current_user
@@ -322,8 +322,9 @@ class PatronDashboard:
                 self.app.hr_service.update_request_status(req_id, 'Approved', 'Boss')
 
                 # Send notification
+                diff = res.get_difference()
                 self.app.notification_service.send(sender,
-                                                   f"Your raise is approved! New Salary: {res.new_salary:,.0f} ₺")
+                                                   f"Your raise is approved! 📊 Previous: {res.old_salary:,.0f}₺ | Added: +{diff:,.0f}₺ | New Salary: {res.new_salary:,.0f}₺")
 
                 # Refresh the dashboard
                 self.load_staff_management()
@@ -394,9 +395,9 @@ class PatronDashboard:
         if result:
             target_user = result[0]
             if amount > 0:
-                msg = f"Boss made an update to your salary! 📈 Your new salary is: {new_val:,.0f} ₺"
+                msg = f"Boss made an update to your salary! 📈 Previous: {current_salary:,.0f}₺ | Added: +{amount:,.0f}₺ | New Salary: {new_val:,.0f}₺"
             else:
-                msg = f"Boss made a deduction from your salary! 📉 Your new salary is: {new_val:,.0f} ₺"
+                msg =  f"Boss made a deduction from your salary! 📉 Previous: {current_salary:,.0f}₺ | Deducted: {amount:,.0f}₺ | New Salary: {new_val:,.0f}₺"
 
             self.app.notification_service.send(target_user, msg)
         # -----------------------------------

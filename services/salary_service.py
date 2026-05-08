@@ -57,9 +57,8 @@ class SalaryService:
         self.db.conn.commit()
 
         # Geriye bir nesne döndür (Dashboard'un anlaması için)
-        from dataclasses import make_dataclass
-        Result = make_dataclass("Result", [("new_salary", float)])
-        return Result(new_salary=new_salary)
+        return SalaryRecord(None, user_id, current_salary, new_salary, percentage)
+
     def get_history(self, user_id):
         """Retrieves all salary raise logs for a specific user"""
         query = """

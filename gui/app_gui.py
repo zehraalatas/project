@@ -37,30 +37,3 @@ class AppGUI(ctk.CTk):
         """Goes back to the login page"""
         self.clear_screen()
         LoginScreen(self)
-
-        def setup_off_day_area(self, parent_frame, employee):
-            count = self.hr_service.get_role_count(employee.role)
-
-            for widget in parent_frame.winfo_children():
-                widget.destroy()
-
-            if count <= 1:
-                # Tek kişi varsa Kırmızı Uyarı Label'ı
-                info_label = ctk.Label(
-                    parent_frame,
-                    text=f"ONLY {employee.role.upper()} (No Off-Day Allowed)",
-                    fg="white",
-                    bg="#cc0000",
-                    font=("Arial", 10, "bold"),
-                    padx=10,
-                    pady=5
-                )
-                info_label.pack(fill="x")
-            else:
-                # Birden fazla kişi varsa Seçim Combobox'ı
-                ctk.Label(parent_frame, text="Select Off-Day:", font=("Arial", 10)).pack(side="left")
-
-                days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-                self.off_day_combo = ctk.Combobox(parent_frame, values=days, state="readonly")
-                self.off_day_combo.set(employee.off_day)
-                self.off_day_combo.pack(side="left", padx=10)

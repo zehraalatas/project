@@ -1,6 +1,6 @@
 import customtkinter as ctk
 from gui.apply_screen import ApplyScreen
-from gui.patron_dashboard import PatronDashboard
+from gui.admin_dashboard import AdminDashboard
 from gui.manager_dashboard import ManagerDashboard
 from gui.employee_dashboard import EmployeeDashboard
 
@@ -14,7 +14,7 @@ class LoginScreen:
         self.main_frame.place(relx=0.5, rely=0.5, anchor=ctk.CENTER)
 
         # Screen Title
-        self.label_title = ctk.CTkLabel(self.main_frame, text="System Login", font=("Arial", 24, "bold"))
+        self.label_title = ctk.CTkLabel(self.main_frame, text="☕ System Login ☕", font=("Arial", 24, "bold"))
         self.label_title.place(relx=0.5, rely=0.15, anchor=ctk.CENTER)
 
         # Input Fields
@@ -49,19 +49,11 @@ class LoginScreen:
 
         if found_user:
             self.app.current_user = found_user
-
-            # Using a simple dictionary to handle role routing (Dictionary usage example)
-            # This makes it look like we applied lesson topics to logic
-            user_roles = {
-                "Boss": PatronDashboard,
-                "Manager": ManagerDashboard
-            }
-
             self.app.clear_screen()
 
             # Simple if-else logic for dashboards (Student level coding)
             if found_user.role == "Boss":
-                PatronDashboard(self.app)
+                AdminDashboard(self.app)
             elif found_user.role == "Manager":
                 ManagerDashboard(self.app)
             else:

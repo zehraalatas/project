@@ -76,8 +76,9 @@ class ApplyScreen:
             return
 
         # 2. Tarih Format Kontrolü (YYYY-YYYY)
-        if not self.app.validation_service.is_valid_date_range(date):
-            self.show_error("Date must be YYYY-YYYY (e.g. 2018-2022)")
+        is_valid, error_msg = self.app.validation_service.is_valid_date_range(date)
+        if not is_valid:
+            self.show_error(error_msg)
             return
 
         # Listeye ekle

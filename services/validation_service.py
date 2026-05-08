@@ -34,13 +34,22 @@ class ValidationService:
         return phone.startswith("05") and len(phone) == 11 and phone.isdigit()
 
     def is_valid_date_range(self, date_text):
-        """Format kontrolü: YYYY-YYYY (Örn: 2018-2022)"""
-        import re
-        # 4 rakam - 4 rakam formatını kontrol eder
         pattern = r"^\d{4}-\d{4}$"
         if re.match(pattern, date_text):
             years = date_text.split("-")
-            # Başlangıç yılı bitişten büyük olamaz
-            if int(years[0]) <= int(years[1]):
-                return True
+            start = int(years[0])
+            end = int(years[1])
+
+            current_year = 2026
+
+            # Başlangıç bitiş kontrolü (zaten vardı)
+            if start > end:
+                return False, "Start year cannot be greater than end year!"
+
+            # Makul yıl aralığı kontrolü
+            if start < 1950 or end > current_year:
+                return False, f"Years must be between 1950 and {current_year}!"
+
+
+            return True,""
         return False

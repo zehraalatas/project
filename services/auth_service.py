@@ -1,7 +1,7 @@
 from models.user import User
 from models.employee import Employee
 from models.manager import Manager
-from models.patron import Patron  # This corresponds to the Boss class
+from models.admin import Admin  # This corresponds to the Boss class
 from services.validation_service import ValidationService
 
 
@@ -22,7 +22,7 @@ class AuthService:
             # Creating specific objects based on roles (Polymorphism)
             # Updated to match our new English database values
             if u_role == "Boss":
-                return Patron(u_id, u_name, u_off)
+                return Admin(u_id, u_name, u_off)
             elif u_role == "Manager":
                 return Manager(u_id, u_name, u_salary, u_off)
             else:
