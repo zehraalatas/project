@@ -1,7 +1,5 @@
 from models.cv import CV
 from models.application import Application
-from models.shift import Shift
-import datetime as dt
 import json
 
 
@@ -10,15 +8,16 @@ class HRService:
         self.db = db_manager
 
     def submit_application(self, cv_obj, role):
-        # Deneyim listesini stringe çeviriyoruz (Serialization)
-        exp_json = json.dumps(cv_obj.experiences)
+        # cv_obj.experiences zaten ApplyScreen'den JSON string veya "No Experience" olarak geliyor
+        # Tekrar json.dumps() yaparsak çift encode olur — direkt kullanıyoruz
+        exp_data = cv_obj.experiences
 
         query = """INSERT INTO applications
                    (name, surname, gender, email, phone, experience, notes, desired_role, status)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending')"""
         self.db.cursor.execute(query, (
             cv_obj.name, cv_obj.surname, cv_obj.gender, cv_obj.email,
-            cv_obj.phone, exp_json, cv_obj.notes, role
+            cv_obj.phone, exp_data, cv_obj.notes, role
         ))
         self.db.conn.commit()
 
@@ -33,20 +32,33 @@ class HRService:
         apps = []
         for r in rows:
             try:
-                # r[6] veritabanındaki 'experience' kolonudur
+                # DB'deki experience alanını parse ediyoruz
+                raw_exp = r[6]
+                if not raw_exp or raw_exp == "No Experience":
+                    parsed_exp = []
+                else:
+                    try:
+                        parsed_exp = json.loads(raw_exp)
+                        # Eski bozuk veri koruma - yine string geldiyse bir daha parse et
+                        if isinstance(parsed_exp, str):
+                            parsed_exp = json.loads(parsed_exp)
+                        if not isinstance(parsed_exp, list):
+                            parsed_exp = []
+                    except Exception:
+                        parsed_exp = []
+
                 cv = CV(
                     name=r[1],
                     surname=r[2],
                     gender=r[3],
                     email=r[4],
                     phone=r[5],
-                    experiences=r[6], # Modeldeki isim 'experiences'
+                    experiences=parsed_exp,  # Artık her zaman list
                     notes=r[7]
                 )
-                # Sınıfındaki parametre sırası: id, role, status, cv_obj
                 apps.append(Application(r[0], r[8], "Pending", cv))
             except Exception as e:
-                print(f"Hata: {e}")
+                print(f"Uygulama yüklenirken hata: {e}")
                 continue
         return apps
 
@@ -163,9 +175,38 @@ class HRService:
         self.db.conn.commit()
 
     def fire_employee(self, user_id):
-        """Removes an employee account from the database"""
+        """Removes an employee account from the database.
+        After firing, redistributes off-days if remaining staff all share the same day."""
+        # Önce bu çalışanın rolünü al
+        self.db.cursor.execute("SELECT role FROM users WHERE id=?", (user_id,))
+        row = self.db.cursor.fetchone()
+        if not row:
+            return
+        fired_role = row[0]
+
+        # Çalışanı sil
         self.db.cursor.execute("DELETE FROM users WHERE id=?", (user_id,))
         self.db.conn.commit()
+
+        # Aynı roldeki kalan çalışanları kontrol et
+        self.db.cursor.execute(
+            "SELECT id, off_day FROM users WHERE role=?", (fired_role,)
+        )
+        remaining = self.db.cursor.fetchall()
+
+        if len(remaining) < 2:
+            # 0 veya 1 kişi kaldıysa çakışma kontrolü gerekmiyor
+            return
+
+        # Tüm kalan çalışanlar aynı günde mi izinli?
+        off_days = [r[1] for r in remaining]
+        if len(set(off_days)) == 1:
+            # Hepsi aynı gün — otomatik yeniden dağıt
+            all_days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+            for idx, (uid, _) in enumerate(remaining):
+                new_day = all_days[idx % len(all_days)]
+                self.db.cursor.execute("UPDATE users SET off_day=? WHERE id=?", (new_day, uid))
+            self.db.conn.commit()
 
     def check_off_day_conflict(self, user_id, role, new_off_day):
         """Checks if a role has enough coverage for the selected off-day"""
@@ -197,26 +238,6 @@ class HRService:
             return False, "Conflict: No coverage available for this day!"
 
         return True, "Success"
-
-    def log_status(self, user_id, username, status):
-        """Logs daily working status into the shifts table"""
-        today = dt.date.today().isoformat()
-
-        # Prevent duplicate logs for the same day
-        self.db.cursor.execute("SELECT id FROM shifts WHERE user_id=? AND date=?", (user_id, today))
-        if not self.db.cursor.fetchone():
-            self.db.cursor.execute(
-                "INSERT INTO shifts (user_id, username, date, status) VALUES (?, ?, ?, ?)",
-                (user_id, username, today, status)
-            )
-            self.db.conn.commit()
-
-    def get_all_shifts(self):
-        """Fetches all shift history for the Boss tracking report"""
-        self.db.cursor.execute("SELECT id, user_id, username, date, status FROM shifts ORDER BY date DESC")
-        rows = self.db.cursor.fetchall()
-        # Mapping results to the Shift object list (Lesson Topic: List Comprehension)
-        return [Shift(r[0], r[1], r[2], r[3], r[4]) for r in rows]
 
     def submit_manager_request(self, sender_name, request_type, detail):
         """Manager requests bypass themselves and go directly to the Boss"""

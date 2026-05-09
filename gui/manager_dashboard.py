@@ -130,18 +130,31 @@ class ManagerDashboard:
             day_card.pack()
 
             ctk.CTkLabel(day_card, text=status_text, font=("Arial", 13, "bold"), text_color="white").place(relx=0.5,
-                                                                                                           rely=0.5,
+                                                                                                           rely=0.35,
                                                                                                            anchor="center")
+            if not is_holiday:
+                ctk.CTkLabel(day_card, text="09:00-17:00", font=("Arial", 8), text_color="white").place(relx=0.5,
+                                                                                                        rely=0.72,
+                                                                                                        anchor="center")
 
-        # BURASI SENİN KAYBOLAN BUTONLARININ YERİ (Manager's own requests)
+        # Manager's own requests + extra actions
         action_row = ctk.CTkFrame(self.profile_tab, fg_color="transparent")
-        action_row.pack(pady=35)
+        action_row.pack(pady=(25, 5))
 
         ctk.CTkButton(action_row, text="Request Leave", fg_color="#f39c12", width=150, height=40,
                       command=lambda: self.make_own_request("Leave")).pack(side="left", padx=15)
 
         ctk.CTkButton(action_row, text="Request Raise", fg_color="#8e44ad", width=150, height=40,
                       command=lambda: self.make_own_request("Salary")).pack(side="left", padx=15)
+
+        extra_row = ctk.CTkFrame(self.profile_tab, fg_color="transparent")
+        extra_row.pack(pady=5)
+
+        ctk.CTkButton(extra_row, text="💰 Salary History", fg_color="#1a7a4a", width=150, height=40,
+                      command=self.open_salary_history).pack(side="left", padx=15)
+
+        ctk.CTkButton(extra_row, text="⚙️ Settings", fg_color="#34495e", width=150, height=40,
+                      command=self.open_settings).pack(side="left", padx=15)
 
         self.refresh_notif_badge()
 
@@ -391,3 +404,62 @@ class ManagerDashboard:
 
         # İlk açılışta bugünün listesini yükle
         refresh_list(day_filter.get())
+
+    def open_salary_history(self):
+        records = self.app.salary_service.get_history(self.user.user_id)
+
+        win = ctk.CTkToplevel(self.app)
+        win.title("Salary History")
+        win.geometry("450x400")
+        win.grab_set()
+
+        ctk.CTkLabel(win, text="💰 Your Salary History", font=("Arial", 18, "bold")).pack(pady=15)
+
+        if not records:
+            ctk.CTkLabel(win, text="No salary changes yet.", text_color="gray").pack(pady=40)
+            return
+
+        scroll = ctk.CTkScrollableFrame(win, fg_color="transparent")
+        scroll.pack(fill="both", expand=True, padx=10, pady=10)
+
+        for rec in records:
+            card = ctk.CTkFrame(scroll, fg_color="#2c3e50", corner_radius=6)
+            card.pack(fill="x", pady=5, padx=5)
+
+            ctk.CTkLabel(card, text=f"📅 {rec.date}", font=("Arial", 11), text_color="#95a5a6").pack(anchor="w",
+                                                                                                     padx=10, pady=(6, 0))
+            diff = rec.get_difference()
+            percent_str = f"{rec.percent:.2f}".rstrip('0').rstrip('.')
+            sign = "+" if diff >= 0 else ""
+            diff_color = "#2ecc71" if diff >= 0 else "#e74c3c"
+            ctk.CTkLabel(card,
+                         text=f"{rec.old_salary:,.0f} ₺  →  {rec.new_salary:,.0f} ₺  ({sign}{diff:,.0f} ₺ | {sign}{percent_str}%)",
+                         font=("Arial", 13, "bold"), text_color=diff_color).pack(anchor="w", padx=10, pady=(2, 8))
+
+    def open_settings(self):
+        set_win = ctk.CTkToplevel(self.app)
+        set_win.title("Account Settings")
+        set_win.geometry("350x220")
+        set_win.grab_set()
+
+        ctk.CTkLabel(set_win, text="⚙️ Change Password", font=("Arial", 18, "bold")).pack(pady=20)
+
+        pass_entry = ctk.CTkEntry(set_win, placeholder_text="New Password", show="*", width=250)
+        pass_entry.pack(pady=10)
+
+        msg_label = ctk.CTkLabel(set_win, text="", font=("Arial", 11, "bold"))
+        msg_label.pack(pady=5)
+
+        def save_changes():
+            p = pass_entry.get().strip()
+            if not p:
+                msg_label.configure(text="Password cannot be empty!", text_color="#e74c3c")
+                return
+            done, info = self.app.auth_service.update_credentials(self.user.user_id, self.user.username, p)
+            if done:
+                msg_label.configure(text=info, text_color="#2ecc71")
+                set_win.after(1500, set_win.destroy)
+            else:
+                msg_label.configure(text=info, text_color="#e74c3c")
+
+        ctk.CTkButton(set_win, text="Save Password", command=save_changes, fg_color="#3498db").pack(pady=15)

@@ -41,6 +41,7 @@ class SalaryService:
 
         # 2. Yeni maaşı hesapla
         new_salary = round(current_salary * (1 + (percentage / 100)), 2)
+        percentage = round(percentage, 2)
 
         # 3. VERİTABANINI GÜNCELLE
         self.db.cursor.execute("UPDATE users SET salary = ? WHERE id = ?", (new_salary, user_id))

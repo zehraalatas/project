@@ -1,5 +1,4 @@
 import customtkinter as ctk
-import datetime
 from models.schedule import Schedule
 
 
@@ -30,17 +29,6 @@ class EmployeeDashboard:
                                        width=280, height=40, fg_color="#8e44ad")
         self.btn_board.pack(pady=10)
 
-        # --- Automatic Status Check ---
-        day_index = datetime.datetime.today().weekday()
-        today_name = self.user_schedule.DAYS[day_index]
-
-        if today_name.lower() == self.user.off_day.lower():
-            current_status = "Off Day"
-        else:
-            current_status = "Working"
-
-        self.app.hr_service.log_status(self.user.user_id, self.user.username, current_status)
-
         # --- Weekly Schedule Section ---
         self.calendar_frame = ctk.CTkFrame(app, corner_radius=10)
         self.calendar_frame.pack(pady=20, padx=40, fill="x")
@@ -59,23 +47,32 @@ class EmployeeDashboard:
                 row=0, column=i, padx=5, pady=5)
 
             if staff_count <= 1:
-                box_text = "No Off"
-                box_color = "#7f8c8d"
+                box_text = "Work"
+                box_color = "#2ecc71"
+                time_text = "09:00 - 17:00"
             else:
-                summary = work_day.get_summary()  # WorkDay'in metodunu kullan
+                summary = work_day.get_summary()  # "Monday: OFF DAY" veya "Monday: 09:00 - 17:00"
                 if work_day.is_off:
                     box_text = "OFF"
                     box_color = "#e74c3c"
+                    time_text = ""
                 else:
                     box_text = "Work"
                     box_color = "#2ecc71"
+                    # get_summary() -> "Monday: 09:00 - 17:00" => saat kısmını al
+                    parts = summary.split(": ", 1)
+                    time_text = parts[1] if len(parts) > 1 else ""
 
-            day_box = ctk.CTkFrame(self.grid_frame, width=75, height=55, fg_color=box_color, corner_radius=5)
+            day_box = ctk.CTkFrame(self.grid_frame, width=75, height=65, fg_color=box_color, corner_radius=5)
             day_box.grid(row=1, column=i, padx=5, pady=5)
             day_box.grid_propagate(False)
 
             status_lbl = ctk.CTkLabel(day_box, text=box_text, font=("Arial", 11, "bold"), text_color="white")
-            status_lbl.place(relx=0.5, rely=0.5, anchor="center")
+            status_lbl.place(relx=0.5, rely=0.35, anchor="center")
+
+            if time_text:
+                time_lbl = ctk.CTkLabel(day_box, text=time_text, font=("Arial", 8), text_color="white")
+                time_lbl.place(relx=0.5, rely=0.75, anchor="center")
 
         # --- Request Buttons ---
         self.request_area = ctk.CTkFrame(app, fg_color="transparent")
@@ -308,6 +305,10 @@ class EmployeeDashboard:
                 ctk.CTkLabel(card, text=f"📅 {rec.date}", font=("Arial", 11), text_color="#95a5a6").pack(anchor="w",
                                                                                                         padx=10,
                                                                                                         pady=(6, 0))
+                diff = rec.get_difference()
+                percent_str = f"{rec.percent:.2f}".rstrip('0').rstrip('.')
+                sign = "+" if diff >= 0 else ""
+                diff_color = "#2ecc71" if diff >= 0 else "#e74c3c"
                 ctk.CTkLabel(card,
-                             text=f"{rec.old_salary:,.0f} ₺  →  {rec.new_salary:,.0f} ₺  (+{rec.percent}%)",
-                             font=("Arial", 13, "bold"), text_color="#2ecc71").pack(anchor="w", padx=10, pady=(2, 8))
+                             text=f"{rec.old_salary:,.0f} ₺  →  {rec.new_salary:,.0f} ₺  ({sign}{diff:,.0f} ₺ | {sign}{percent_str}%)",
+                             font=("Arial", 13, "bold"), text_color=diff_color).pack(anchor="w", padx=10, pady=(2, 8))

@@ -35,7 +35,13 @@ class AdminDashboard:
         # Footer buttons
         self.board_btn = ctk.CTkButton(app, text="📝 Company Notice Board", command=self.open_notice_board,
                                        fg_color="#8e44ad", width=200)
-        self.board_btn.pack(side="top", pady=(5, 10))
+        self.board_btn.pack(side="top", pady=(5, 5))
+
+        top_btn_row = ctk.CTkFrame(app, fg_color="transparent")
+        top_btn_row.pack(side="top", pady=(0, 10))
+
+        ctk.CTkButton(top_btn_row, text="⚙️ Settings", command=self.open_settings,
+                      fg_color="#34495e", width=160, height=32).pack(side="left", padx=10)
 
         self.logout_btn = ctk.CTkButton(app, text="Secure Logout", command=self.app.show_login_screen,
                                         fg_color="darkred")
@@ -640,31 +646,18 @@ class AdminDashboard:
         exp_header.pack(pady=(20, 5), padx=40, anchor="w")
 
         # 3. DENEYİM VERİSİNİ İŞLEME
+        # cv.experiences artık her zaman list olarak geliyor (hr_service parse ediyor)
         formatted_exp_text = ""
-        raw_data = app_obj.cv.experiences
+        experiences = app_obj.cv.experiences
 
-        if not raw_data or raw_data == "No experience":
+        if not experiences:
             formatted_exp_text = "No work experience provided."
         else:
-            try:
-                if isinstance(raw_data, str):
-                    clean_data = raw_data.strip('"').replace('\\"', '"')
-                    experiences = json.loads(clean_data)
-                else:
-                    experiences = raw_data
-
-                if not experiences or not isinstance(experiences, list):
-                    formatted_exp_text = "No work experience provided."
-                else:
-                    for i, exp in enumerate(experiences, 1):
-                        formatted_exp_text += f"{i}. COMPANY: {exp.get('company', 'N/A').upper()}\n"
-                        formatted_exp_text += f"   POSITION: {exp.get('pos', 'N/A')}\n"
-                        formatted_exp_text += f"   DATES: {exp.get('date', 'N/A')}\n"
-                        formatted_exp_text += "-" * 45 + "\n"
-
-            except Exception as e:
-                # Eğer hata verirse en azından ham veriyi temizle
-                formatted_exp_text = str(raw_data).replace('[', '').replace(']', '').replace('{', '').replace('}', '')
+            for i, exp in enumerate(experiences, 1):
+                formatted_exp_text += f"{i}. COMPANY: {exp.get('company', 'N/A').upper()}\n"
+                formatted_exp_text += f"   POSITION: {exp.get('pos', 'N/A')}\n"
+                formatted_exp_text += f"   DATES: {exp.get('date', 'N/A')}\n"
+                formatted_exp_text += "-" * 45 + "\n"
 
         # Deneyim Kutusu
         exp_box = ctk.CTkTextbox(win, width=480, height=200, corner_radius=10, border_width=1, border_color="#34495e")
@@ -686,3 +679,61 @@ class AdminDashboard:
                                    width=120, height=40, font=("Arial", 13, "bold"),
                                    command=lambda: [self.process_hire(app_obj.app_id, "Rejected"), win.destroy()])
         reject_btn.pack(side="left", padx=15)
+    def open_salary_history(self):
+        records = self.app.salary_service.get_history(self.user.user_id)
+
+        win = ctk.CTkToplevel(self.app)
+        win.title("My Salary History")
+        win.geometry("450x400")
+        win.grab_set()
+
+        ctk.CTkLabel(win, text="💰 My Salary History", font=("Arial", 18, "bold")).pack(pady=15)
+
+        if not records:
+            ctk.CTkLabel(win, text="No salary changes yet.", text_color="gray").pack(pady=40)
+            return
+
+        scroll = ctk.CTkScrollableFrame(win, fg_color="transparent")
+        scroll.pack(fill="both", expand=True, padx=10, pady=10)
+
+        for rec in records:
+            card = ctk.CTkFrame(scroll, fg_color="#2c3e50", corner_radius=6)
+            card.pack(fill="x", pady=5, padx=5)
+
+            ctk.CTkLabel(card, text=f"📅 {rec.date}", font=("Arial", 11), text_color="#95a5a6").pack(anchor="w",
+                                                                                                     padx=10, pady=(6, 0))
+            diff = rec.get_difference()
+            percent_str = f"{rec.percent:.2f}".rstrip('0').rstrip('.')
+            sign = "+" if diff >= 0 else ""
+            diff_color = "#2ecc71" if diff >= 0 else "#e74c3c"
+            ctk.CTkLabel(card,
+                         text=f"{rec.old_salary:,.0f} ₺  →  {rec.new_salary:,.0f} ₺  ({sign}{diff:,.0f} ₺ | {sign}{percent_str}%)",
+                         font=("Arial", 13, "bold"), text_color=diff_color).pack(anchor="w", padx=10, pady=(2, 8))
+
+    def open_settings(self):
+        set_win = ctk.CTkToplevel(self.app)
+        set_win.title("Account Settings")
+        set_win.geometry("350x220")
+        set_win.grab_set()
+
+        ctk.CTkLabel(set_win, text="⚙️ Change Password", font=("Arial", 18, "bold")).pack(pady=20)
+
+        pass_entry = ctk.CTkEntry(set_win, placeholder_text="New Password", show="*", width=250)
+        pass_entry.pack(pady=10)
+
+        msg_label = ctk.CTkLabel(set_win, text="", font=("Arial", 11, "bold"))
+        msg_label.pack(pady=5)
+
+        def save_changes():
+            p = pass_entry.get().strip()
+            if not p:
+                msg_label.configure(text="Password cannot be empty!", text_color="#e74c3c")
+                return
+            done, info = self.app.auth_service.update_credentials(self.user.user_id, self.user.username, p)
+            if done:
+                msg_label.configure(text=info, text_color="#2ecc71")
+                set_win.after(1500, set_win.destroy)
+            else:
+                msg_label.configure(text=info, text_color="#e74c3c")
+
+        ctk.CTkButton(set_win, text="Save Password", command=save_changes, fg_color="#3498db").pack(pady=15)

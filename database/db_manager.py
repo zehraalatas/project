@@ -86,29 +86,7 @@ class DatabaseManager:
                             )
                             """)
 
-        # 4. Shifts Table: Tracks daily working status
-        self.cursor.execute("""
-                            CREATE TABLE IF NOT EXISTS shifts
-                            (
-                                id
-                                INTEGER
-                                PRIMARY
-                                KEY
-                                AUTOINCREMENT,
-                                user_id
-                                INTEGER,
-                                username
-                                TEXT,
-                                date
-                                TEXT,
-                                status
-                                TEXT,
-                                hours
-                                INTEGER
-                                DEFAULT
-                                8
-                            )
-                            """)
+
 
         # --- SEEDING DEFAULT USERS ---
         # Using a List of Tuples for easy management (Lesson Topic: Collections)
