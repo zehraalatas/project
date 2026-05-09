@@ -4,24 +4,7 @@
     <option name="autoReloadType" value="ALL" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d4d7db15-82ef-4b19-a8ec-6ac1ead54eff" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/dataSources/5e01b243-5c64-49c9-87ba-650c27e9f5b8.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources/5e01b243-5c64-49c9-87ba-650c27e9f5b8.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/dataSources/data_sources_history.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources/data_sources_history.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cafe_system.db" beforeDir="false" afterPath="$PROJECT_DIR$/cafe_system.db" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/gui/app_gui.py" beforeDir="false" afterPath="$PROJECT_DIR$/gui/app_gui.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/gui/apply_screen.py" beforeDir="false" afterPath="$PROJECT_DIR$/gui/apply_screen.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/gui/employee_dashboard.py" beforeDir="false" afterPath="$PROJECT_DIR$/gui/employee_dashboard.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/gui/login_screen.py" beforeDir="false" afterPath="$PROJECT_DIR$/gui/login_screen.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/gui/patron_dashboard.py" beforeDir="false" afterPath="$PROJECT_DIR$/gui/admin_dashboard.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/leave_request.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/manager.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/manager.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/patron.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/admin.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/raise_request.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/auth_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/auth_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/salary_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/salary_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/validation_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/validation_service.py" afterDir="false" />
-    </list>
+    <list default="true" id="d4d7db15-82ef-4b19-a8ec-6ac1ead54eff" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -146,6 +129,7 @@
       <workItem from="1778184921678" duration="6848000" />
       <workItem from="1778192068821" duration="204000" />
       <workItem from="1778274080443" duration="8345000" />
+      <workItem from="1778343589544" duration="475000" />
     </task>
     <servers />
   </component>
