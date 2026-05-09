@@ -40,7 +40,7 @@ class SalaryService:
         current_salary = row[0]
 
         # 2. Yeni maaşı hesapla
-        new_salary = current_salary * (1 + (percentage / 100))
+        new_salary = round(current_salary * (1 + (percentage / 100)), 2)
 
         # 3. VERİTABANINI GÜNCELLE
         self.db.cursor.execute("UPDATE users SET salary = ? WHERE id = ?", (new_salary, user_id))
@@ -53,10 +53,10 @@ class SalaryService:
             (user_id, current_salary, new_salary, percentage, today)
         )
 
-        # 5. KAYDET (HATA BURADAYDI: connection yerine conn olmalı!)
+        # 5. KAYDET
         self.db.conn.commit()
 
-        # Geriye bir nesne döndür (Dashboard'un anlaması için)
+        # --- DOĞAL VE BASİT DÖNÜŞ ---
         return SalaryRecord(None, user_id, current_salary, new_salary, percentage)
 
     def get_history(self, user_id):
@@ -69,5 +69,8 @@ class SalaryService:
         self.db.cursor.execute(query, (user_id,))
         rows = self.db.cursor.fetchall()
 
-        # Convert raw tuples into SalaryRecord objects (Lesson Topic: Mapping)
-        return [SalaryRecord(*r) for r in rows]
+        result = []
+        for r in rows:
+            record = SalaryRecord(r[0], r[1], r[2], r[3], r[4], r[5])
+            result.append(record)
+        return result

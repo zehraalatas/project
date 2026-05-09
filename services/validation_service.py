@@ -4,13 +4,6 @@ class ValidationService:
     def __init__(self):
         pass
 
-    def is_empty(self, *args):
-        """Herhangi bir alan boş mu kontrol eder"""
-        for field in args:
-            if not str(field).strip():
-                return True
-        return False
-
     def is_valid_email(self, email):
         """Maili temizler ve kontrol eder"""
         # 1. Önce veriyi temizleyelim (Başındaki sonundaki gizli boşlukları atar)
@@ -52,4 +45,4 @@ class ValidationService:
 
 
             return True,""
-        return False
+        return False, "Format must be YYYY-YYYY (e.g. 2018-2022)"

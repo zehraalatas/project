@@ -21,18 +21,6 @@ class Schedule:
             # Create a WorkDay object for each day
             self.weekly_plan.append(WorkDay(d, is_off=is_off))
 
-    def get_day_status(self, day_name):
-        """
-        Retrieves the work/off status for a specific day.
-
-        :param day_name: Name of the day to search for
-        :return: String summary of the day's status or error message
-        """
-        for wd in self.weekly_plan:
-            if wd.day_name == day_name:
-                return wd.get_summary()
-        return "Day not found"
-
     def __repr__(self):
         """String representation for debugging"""
         return f"Schedule(UserID: {self.user_id}, Days: {len(self.weekly_plan)})"

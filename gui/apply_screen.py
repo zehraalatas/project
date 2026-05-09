@@ -140,7 +140,7 @@ class ApplyScreen:
             exp_final_data = "No Experience"
         else:
             # Liste doluysa JSON formatına çevir
-            exp_final_data = json.dumps(self.experience_list)
+            exp_final_data = json.dumps(self.experience_list, ensure_ascii=False)
 
         # 7. CV Nesnesini Oluştur ve Gönder
         from models.cv import CV

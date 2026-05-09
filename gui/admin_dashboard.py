@@ -50,7 +50,9 @@ class AdminDashboard:
         total_cost = self.app.report_service.get_total_salary_cost()
 
         # Stat cards
-        self.create_stat_card(self.stat_frame, "Daily Revenue", "14.250 ₺", "#2ecc71", 0)
+        summary = self.app.report_service.get_staff_summary()
+        summary_text = "  |  ".join([f"{role}: {count}" for role, count in summary]) or "No staff"
+        self.create_stat_card(self.stat_frame, "Roles", summary_text, "#2ecc71", 0)
         self.create_stat_card(self.stat_frame, "Salary Costs", f"{total_cost:,.0f} ₺", "#e74c3c", 1)
         self.create_stat_card(self.stat_frame, "Active Staff", f"{active_count}", "#f1c40f", 2)
 
@@ -372,35 +374,43 @@ class AdminDashboard:
         self.load_staff_management()
 
     def change_salary(self, p_id, current_salary, amount):
-        new_val = current_salary + amount
+        new_val = round(current_salary + amount, 2)
+
+        # 2. Kullanıcı tablosunu güncelle
         self.app.db_manager.cursor.execute("UPDATE users SET salary=? WHERE id=?", (new_val, p_id))
 
-        percent = (amount / current_salary) * 100 if current_salary != 0 else 0
+        # 3. Yüzdeyi hesapla ve onu da yuvarla
+        percent = round((amount / current_salary) * 100, 2) if current_salary != 0 else 0
         date_str = datetime.date.today().isoformat()
 
+        # 4. Maaş geçmişine kaydet (Artık veritabanına temiz gidecek)
         try:
             self.app.db_manager.cursor.execute(
                 "INSERT INTO salary_records (user_id, old_salary, new_salary, percent, date) VALUES (?, ?, ?, ?, ?)",
                 (p_id, current_salary, new_val, percent, date_str)
             )
-        except:
-            pass
+        except Exception as e:
+            # Sessizce geçmek yerine en azından konsola yazdıralım, daha profesyonel durur
+            print(f"Salary log error: {e}")
 
+        # 5. Değişiklikleri veritabanına işle
         self.app.db_manager.conn.commit()
 
-        # --- YENİ EKLENEN BİLDİRİM KISMI ---
+        # --- BİLDİRİM GÖNDERME KISMI ---
+        # Maaşı değişen kişinin ismini alalım
         self.app.db_manager.cursor.execute("SELECT username FROM users WHERE id=?", (p_id,))
-        result = self.app.db_manager.cursor.fetchone()
+        user_row = self.app.db_manager.cursor.fetchone()
 
-        if result:
-            target_user = result[0]
+        if user_row:
+            target_name = user_row[0]
+            # Duruma göre (zam mı indirim mi) mesajı ayarla
             if amount > 0:
                 msg = f"Boss made an update to your salary! 📈 Previous: {current_salary:,.0f}₺ | Added: +{amount:,.0f}₺ | New Salary: {new_val:,.0f}₺"
             else:
-                msg =  f"Boss made a deduction from your salary! 📉 Previous: {current_salary:,.0f}₺ | Deducted: {amount:,.0f}₺ | New Salary: {new_val:,.0f}₺"
+                msg = f"Boss made a deduction from your salary! 📉 Previous: {current_salary:,.0f}₺ | Deducted: {amount:,.0f}₺ | New Salary: {new_val:,.0f}₺"
 
-            self.app.notification_service.send(target_user, msg)
-        # -----------------------------------
+            # Bildirim servisini kullanarak mesajı gönder
+            self.app.notification_service.send(target_name, msg)
 
         self.load_staff_management()
         self.update_stat_cards()
@@ -629,7 +639,7 @@ class AdminDashboard:
         exp_header = ctk.CTkLabel(win, text="🛠 WORK EXPERIENCE", font=("Arial", 14, "bold"), text_color="#f1c40f")
         exp_header.pack(pady=(20, 5), padx=40, anchor="w")
 
-        # 3. DENEYİM VERİSİNİ İŞLEME (Görseldeki hatayı düzelten kısım)
+        # 3. DENEYİM VERİSİNİ İŞLEME
         formatted_exp_text = ""
         raw_data = app_obj.cv.experiences
 
@@ -637,9 +647,7 @@ class AdminDashboard:
             formatted_exp_text = "No work experience provided."
         else:
             try:
-                # Veri bazen string içinde string olarak gelebilir, temizliyoruz
                 if isinstance(raw_data, str):
-                    # Baştaki ve sondaki gereksiz tırnakları temizle
                     clean_data = raw_data.strip('"').replace('\\"', '"')
                     experiences = json.loads(clean_data)
                 else:
@@ -655,15 +663,16 @@ class AdminDashboard:
                         formatted_exp_text += "-" * 45 + "\n"
 
             except Exception as e:
-                # Eğer JSON ayrıştırma tamamen başarısız olursa ham veriyi göster ama temizle
+                # Eğer hata verirse en azından ham veriyi temizle
                 formatted_exp_text = str(raw_data).replace('[', '').replace(']', '').replace('{', '').replace('}', '')
 
         # Deneyim Kutusu
         exp_box = ctk.CTkTextbox(win, width=480, height=200, corner_radius=10, border_width=1, border_color="#34495e")
         exp_box.pack(pady=5, padx=30)
+
+        # Burası temizlenmiş metni kutuya basar
         exp_box.insert("1.0", formatted_exp_text)
         exp_box.configure(state="disabled")
-
         # 4. Alt Butonlar (Approve / Reject)
         btn_frame = ctk.CTkFrame(win, fg_color="transparent")
         btn_frame.pack(side="bottom", pady=30)

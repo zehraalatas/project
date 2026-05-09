@@ -53,20 +53,22 @@ class EmployeeDashboard:
         self.app.db_manager.cursor.execute("SELECT COUNT(*) FROM users WHERE role=?", (self.user.role,))
         staff_count = self.app.db_manager.cursor.fetchone()[0]
 
-        for i, day in enumerate(self.user_schedule.DAYS):
-            short_name = day[:3]
+        for i, work_day in enumerate(self.user_schedule.weekly_plan):
+            short_name = work_day.day_name[:3]
             ctk.CTkLabel(self.grid_frame, text=short_name, font=("Arial", 12, "bold"), width=70).grid(
                 row=0, column=i, padx=5, pady=5)
 
-            if not self.user.can_request_leave(staff_count):
+            if staff_count <= 1:
                 box_text = "No Off"
                 box_color = "#7f8c8d"
-            elif day == self.user.off_day:
-                box_text = "OFF"
-                box_color = "#e74c3c"
             else:
-                box_text = "Work"
-                box_color = "#2ecc71"
+                summary = work_day.get_summary()  # WorkDay'in metodunu kullan
+                if work_day.is_off:
+                    box_text = "OFF"
+                    box_color = "#e74c3c"
+                else:
+                    box_text = "Work"
+                    box_color = "#2ecc71"
 
             day_box = ctk.CTkFrame(self.grid_frame, width=75, height=55, fg_color=box_color, corner_radius=5)
             day_box.grid(row=1, column=i, padx=5, pady=5)
@@ -88,6 +90,9 @@ class EmployeeDashboard:
 
         ctk.CTkButton(self.request_area, text="Request Raise", command=lambda: self.make_request("Salary"), width=140,
                       height=40, fg_color="#8e44ad").grid(row=0, column=1, padx=10)
+
+        ctk.CTkButton(app, text="💰 Salary History", command=self.open_salary_history,
+                      width=280, height=40, fg_color="#1a7a4a").pack(pady=5)
 
         # --- Bottom Menu ---
         self.footer = ctk.CTkFrame(app, fg_color="transparent")
@@ -210,13 +215,10 @@ class EmployeeDashboard:
     def open_settings(self):
         set_win = ctk.CTkToplevel(self.app)
         set_win.title("Account Settings")
-        set_win.geometry("350x400")
+        set_win.geometry("350x300")
         set_win.grab_set()
 
-        ctk.CTkLabel(set_win, text="⚙️ Update Credentials", font=("Arial", 18, "bold")).pack(pady=20)
-        name_entry = ctk.CTkEntry(set_win, placeholder_text="New Username", width=250)
-        name_entry.insert(0, self.user.username)
-        name_entry.pack(pady=10)
+        ctk.CTkLabel(set_win, text="⚙️ Change Password", font=("Arial", 18, "bold")).pack(pady=20)
 
         pass_entry = ctk.CTkEntry(set_win, placeholder_text="New Password", show="*", width=250)
         pass_entry.pack(pady=10)
@@ -225,22 +227,18 @@ class EmployeeDashboard:
         msg_label.pack(pady=5)
 
         def save_changes():
-            u = name_entry.get().strip()
             p = pass_entry.get().strip()
-            if not u or not p:
-                msg_label.configure(text="Fields cannot be empty!", text_color="#e74c3c")
+            if not p:
+                msg_label.configure(text="Password cannot be empty!", text_color="#e74c3c")
                 return
-            done, info = self.app.auth_service.update_credentials(self.user.user_id, u, p)
+            done, info = self.app.auth_service.update_credentials(self.user.user_id, self.user.username, p)
             if done:
                 msg_label.configure(text=info, text_color="#2ecc71")
-                self.user.username = u
-                self.header.configure(text=f"☕ Welcome {self.user.get_display_name()}")
                 set_win.after(1500, set_win.destroy)
             else:
                 msg_label.configure(text=info, text_color="#e74c3c")
 
-        ctk.CTkButton(set_win, text="Save Settings", command=save_changes, fg_color="#3498db").pack(pady=15)
-
+        ctk.CTkButton(set_win, text="Save Password", command=save_changes, fg_color="#3498db").pack(pady=15)
     def open_notice_board(self):
         board_win = ctk.CTkToplevel(self.app)
         board_win.title(f"{self.user.role} Board")
@@ -284,4 +282,32 @@ class EmployeeDashboard:
                 load_board_messages()
 
         ctk.CTkButton(write_frame, text="Post", width=80, command=post_note, fg_color="#2ecc71").pack(side="right",
-                                                                                                      padx=5)
+                                                                                           padx=5)
+
+    def open_salary_history(self):
+            records = self.app.salary_service.get_history(self.user.user_id)
+
+            win = ctk.CTkToplevel(self.app)
+            win.title("Salary History")
+            win.geometry("420x400")
+            win.grab_set()
+
+            ctk.CTkLabel(win, text="💰 Your Salary History", font=("Arial", 18, "bold")).pack(pady=15)
+
+            if not records:
+                ctk.CTkLabel(win, text="No salary changes yet.", text_color="gray").pack(pady=40)
+                return
+
+            scroll = ctk.CTkScrollableFrame(win, fg_color="transparent")
+            scroll.pack(fill="both", expand=True, padx=10, pady=10)
+
+            for rec in records:
+                card = ctk.CTkFrame(scroll, fg_color="#2c3e50", corner_radius=6)
+                card.pack(fill="x", pady=5, padx=5)
+
+                ctk.CTkLabel(card, text=f"📅 {rec.date}", font=("Arial", 11), text_color="#95a5a6").pack(anchor="w",
+                                                                                                        padx=10,
+                                                                                                        pady=(6, 0))
+                ctk.CTkLabel(card,
+                             text=f"{rec.old_salary:,.0f} ₺  →  {rec.new_salary:,.0f} ₺  (+{rec.percent}%)",
+                             font=("Arial", 13, "bold"), text_color="#2ecc71").pack(anchor="w", padx=10, pady=(2, 8))

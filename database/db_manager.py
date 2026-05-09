@@ -9,7 +9,6 @@ class DatabaseManager:
         self.setup_database()
 
     def setup_database(self):
-        """Initializes all tables and default data"""
 
         # 1. Users Table: Stores all staff info
         self.cursor.execute("""
