@@ -1,26 +1,21 @@
 import customtkinter as ctk
 from models.schedule import Schedule
 
-
 class EmployeeDashboard:
     def __init__(self, app):
         self.app = app
         self.user = self.app.current_user
 
-        # Managing work schedule via model
         self.user_schedule = Schedule(self.user.user_id, self.user.off_day)
 
-        # --- Top Info Panel ---
         self.header = ctk.CTkLabel(app, text=f"☕ Welcome {self.user.get_display_name()}",
                                    font=("Arial", 26, "bold"))
         self.header.pack(pady=(30, 10))
 
-        # 2 basamaklı maaş gösterimi (Örn: 15000.00)
         display_text = f"Role: {self.user.role} | Salary: {self.user.salary:.2f} ₺"
         self.role_info = ctk.CTkLabel(app, text=display_text, font=("Arial", 14), text_color="gray")
         self.role_info.pack(pady=5)
 
-        # --- Main Action Buttons ---
         self.btn_notif = ctk.CTkButton(app, text="🔔 Notifications", command=self.show_notifications,
                                        width=280, height=40, fg_color="#2c3e50")
         self.btn_notif.pack(pady=10)
@@ -29,7 +24,6 @@ class EmployeeDashboard:
                                        width=280, height=40, fg_color="#8e44ad")
         self.btn_board.pack(pady=10)
 
-        # --- Weekly Schedule Section ---
         self.calendar_frame = ctk.CTkFrame(app, corner_radius=10)
         self.calendar_frame.pack(pady=20, padx=40, fill="x")
 
@@ -51,7 +45,7 @@ class EmployeeDashboard:
                 box_color = "#2ecc71"
                 time_text = "09:00 - 17:00"
             else:
-                summary = work_day.get_summary()  # "Monday: OFF DAY" veya "Monday: 09:00 - 17:00"
+                summary = work_day.get_summary()
                 if work_day.is_off:
                     box_text = "OFF"
                     box_color = "#e74c3c"
@@ -59,7 +53,6 @@ class EmployeeDashboard:
                 else:
                     box_text = "Work"
                     box_color = "#2ecc71"
-                    # get_summary() -> "Monday: 09:00 - 17:00" => saat kısmını al
                     parts = summary.split(": ", 1)
                     time_text = parts[1] if len(parts) > 1 else ""
 
@@ -74,7 +67,6 @@ class EmployeeDashboard:
                 time_lbl = ctk.CTkLabel(day_box, text=time_text, font=("Arial", 8), text_color="white")
                 time_lbl.place(relx=0.5, rely=0.75, anchor="center")
 
-        # --- Request Buttons ---
         self.request_area = ctk.CTkFrame(app, fg_color="transparent")
         self.request_area.pack(pady=10)
 
@@ -91,7 +83,6 @@ class EmployeeDashboard:
         ctk.CTkButton(app, text="💰 Salary History", command=self.open_salary_history,
                       width=280, height=40, fg_color="#1a7a4a").pack(pady=5)
 
-        # --- Bottom Menu ---
         self.footer = ctk.CTkFrame(app, fg_color="transparent")
         self.footer.pack(side="bottom", pady=25)
 
@@ -140,7 +131,6 @@ class EmployeeDashboard:
                 side="bottom", pady=15)
 
     def make_request(self, req_type):
-        """Handles leave and salary increase requests, blocking/updating based on Manager status."""
         self.app.db_manager.cursor.execute(
             "SELECT id, detail, status FROM requests WHERE sender_name=? AND request_type=? AND status IN ('Pending Manager', 'Pending Boss')",
             (self.user.username, req_type)
@@ -153,7 +143,6 @@ class EmployeeDashboard:
         req_win.grab_set()
         req_win.attributes("-topmost", True)
 
-        # 1. Kilitli Durum (Patrona ulaştıysa)
         if existing_req and existing_req[2] == "Pending Boss":
             req_win.title("Request Locked")
             ctk.CTkLabel(req_win, text="🔒 Request Locked", text_color="#e74c3c", font=("Arial", 16, "bold")).pack(
@@ -163,7 +152,6 @@ class EmployeeDashboard:
             ctk.CTkButton(req_win, text="Close", command=req_win.destroy, fg_color="#34495e").pack(pady=20)
             return
 
-        # 2. Müdürde Bekleyen veya Yeni Talep
         if existing_req:
             req_win.title(f"Update Pending {display_title}")
             ctk.CTkLabel(req_win, text="⚠️ You have a pending request!", text_color="#f39c12",
@@ -206,7 +194,6 @@ class EmployeeDashboard:
         color = "#f39c12" if req_type == "Leave" else "#8e44ad"
         btn_text = "Update Request" if existing_req else "Send Request"
 
-        # SADECE 1 TANE BUTON VAR!
         ctk.CTkButton(req_win, text=btn_text, command=submit_action, fg_color=color).pack(pady=15)
 
     def open_settings(self):
@@ -236,6 +223,7 @@ class EmployeeDashboard:
                 msg_label.configure(text=info, text_color="#e74c3c")
 
         ctk.CTkButton(set_win, text="Save Password", command=save_changes, fg_color="#3498db").pack(pady=15)
+
     def open_notice_board(self):
         board_win = ctk.CTkToplevel(self.app)
         board_win.title(f"{self.user.role} Board")

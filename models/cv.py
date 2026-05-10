@@ -5,5 +5,5 @@ class CV:
         self.gender = gender
         self.email = email
         self.phone = phone
-        self.experiences = experiences  # Artık bu bir LISTE: [{"company": "X", "pos": "Y", "date": "Z"}, ...]
+        self.experiences = experiences
         self.notes = notes

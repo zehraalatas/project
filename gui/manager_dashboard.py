@@ -1,17 +1,15 @@
 import customtkinter as ctk
-
+import datetime
 
 class ManagerDashboard:
     def __init__(self, app):
         self.app = app
         self.user = self.app.current_user
 
-        # Header with capitalized username
         self.header = ctk.CTkLabel(app, text=f"👔 Manager Panel - Welcome {self.user.username.capitalize()}",
                                    font=("Arial", 26, "bold"))
         self.header.pack(pady=(20, 10))
 
-        # Tabs for different sections
         self.tabs = ctk.CTkTabview(app, width=800, height=450)
         self.tabs.pack(pady=10, padx=20, fill="both", expand=True)
 
@@ -19,18 +17,15 @@ class ManagerDashboard:
         self.request_tab = self.tabs.add("📨 Staff Requests")
         self.coverage_tab = self.tabs.add("📅 Shift Coverage")
 
-        # Load initial data
         self.load_staff_requests()
         self.load_manager_profile()
         self.load_coverage_tracker()
 
-        # Logout button
         self.btn_logout = ctk.CTkButton(app, text="Logout", command=self.app.show_login_screen,
                                         fg_color="darkred", width=150)
         self.btn_logout.pack(side="bottom", pady=20)
 
     def load_staff_requests(self):
-        """Lists pending requests from staff for the Manager to review"""
         for widget in self.request_tab.winfo_children():
             widget.destroy()
 
@@ -68,7 +63,6 @@ class ManagerDashboard:
                 side="right", padx=10)
 
     def update_request(self, req_id, new_status, employee_name, req_type):
-        """Handles the decision and sends notification based on new English schema"""
         success = self.app.hr_service.update_request_status(req_id, new_status, "Manager")
 
         if success:
@@ -84,7 +78,6 @@ class ManagerDashboard:
         self.load_staff_requests()
 
     def load_manager_profile(self):
-        """Loads personal info and schedule for the logged-in Manager"""
         for widget in self.profile_tab.winfo_children():
             widget.destroy()
 
@@ -93,11 +86,9 @@ class ManagerDashboard:
         data = self.app.db_manager.cursor.fetchone()
         u_role, u_salary, u_off = data if data else ("Manager", 0, "Monday")
 
-        # Info labels
         ctk.CTkLabel(self.profile_tab, text=f"Role: {u_role} | Salary: {u_salary:,.0f} ₺",
                      font=("Arial", 15), text_color="gray").pack(pady=(10, 20))
 
-        # Action Buttons
         self.btn_notif = ctk.CTkButton(self.profile_tab, text="🔔 Notifications", command=self.show_notifications,
                                        fg_color="#34495e", width=380, height=35)
         self.btn_notif.pack(pady=5)
@@ -106,7 +97,6 @@ class ManagerDashboard:
                                        command=self.open_all_boards, fg_color="#8e44ad", width=380, height=35)
         self.btn_board.pack(pady=5)
 
-        # Work Schedule
         ctk.CTkLabel(self.profile_tab, text="📅 Your Work Schedule", font=("Arial", 18, "bold")).pack(pady=(25, 15))
 
         days_box = ctk.CTkFrame(self.profile_tab, fg_color="transparent")
@@ -137,7 +127,6 @@ class ManagerDashboard:
                                                                                                         rely=0.72,
                                                                                                         anchor="center")
 
-        # Manager's own requests + extra actions
         action_row = ctk.CTkFrame(self.profile_tab, fg_color="transparent")
         action_row.pack(pady=(25, 5))
 
@@ -159,7 +148,6 @@ class ManagerDashboard:
         self.refresh_notif_badge()
 
     def refresh_notif_badge(self):
-        """Updates the notification button text if there are new messages"""
         unread_list = self.app.notification_service.get_unread(self.user.username)
         if len(unread_list) > 0:
             self.btn_notif.configure(text=f"🔔 Notifications ({len(unread_list)})", fg_color="#e67e22")
@@ -167,7 +155,6 @@ class ManagerDashboard:
             self.btn_notif.configure(text="🔔 Notifications", fg_color="#34495e")
 
     def show_notifications(self):
-        """Opens a window to see all unread messages with a scrollable view"""
         unread_items = self.app.notification_service.get_unread(self.user.username)
         notif_window = ctk.CTkToplevel(self.app)
         notif_window.title("Manager Notifications")
@@ -195,8 +182,6 @@ class ManagerDashboard:
                 side="bottom", pady=15)
 
     def make_own_request(self, req_type):
-        """Handles Manager's own leave and salary requests directly to Boss. Allows updating."""
-
         self.app.db_manager.cursor.execute(
             "SELECT id, detail FROM requests WHERE sender_name=? AND request_type=? AND status='Pending Boss'",
             (self.user.username, req_type)
@@ -256,7 +241,6 @@ class ManagerDashboard:
         ctk.CTkButton(req_win, text=btn_text, command=submit_action, fg_color=color).pack(pady=15)
 
     def open_all_boards(self):
-        """Board to communicate with all department staff"""
         board_win = ctk.CTkToplevel(self.app)
         board_win.title("Global Communication Board")
         board_win.geometry("500x600")
@@ -264,7 +248,6 @@ class ManagerDashboard:
 
         ctk.CTkLabel(board_win, text="📝 Departmental Communication", font=("Arial", 18, "bold")).pack(pady=10)
 
-        # --- YENİ EKLENEN FİLTRE ALANI ---
         filter_frame = ctk.CTkFrame(board_win, fg_color="transparent")
         filter_frame.pack(fill="x", padx=10, pady=(0, 5))
 
@@ -275,7 +258,6 @@ class ManagerDashboard:
                                        command=lambda e: refresh())
         filter_combo.set("All")
         filter_combo.pack(side="left")
-        # ---------------------------------
 
         note_scroll = ctk.CTkScrollableFrame(board_win, fg_color="#2c3e50")
         note_scroll.pack(fill="both", expand=True, padx=10, pady=5)
@@ -290,7 +272,6 @@ class ManagerDashboard:
             has_notes = False
             if all_notes:
                 for n in all_notes:
-                    # Filtreleme mantığı
                     if selected_filter != "All" and n.target_role != selected_filter:
                         continue
 
@@ -329,21 +310,18 @@ class ManagerDashboard:
         ctk.CTkButton(bottom_bar, text="Post", width=70, command=post, fg_color="#2ecc71").pack(side="right", padx=5)
 
     def load_coverage_tracker(self):
-        """Manager için gün bazlı personel durum tablosu (Present/Absent)"""
         for widget in self.coverage_tab.winfo_children():
             widget.destroy()
 
         ctk.CTkLabel(self.coverage_tab, text="📅 WEEKLY COVERAGE TRACKER",
                      font=("Arial", 16, "bold"), text_color="#3498db").pack(pady=(15, 5))
 
-        # Filtre Paneli (Combobox)
         filter_frame = ctk.CTkFrame(self.coverage_tab, fg_color="transparent")
         filter_frame.pack(fill="x", padx=25, pady=(0, 10))
 
         ctk.CTkLabel(filter_frame, text="Select Day:", font=("Arial", 12, "bold")).pack(side="left", padx=(0, 10))
 
         days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-        import datetime
         current_day = datetime.datetime.now().strftime("%A")
 
         day_filter = ctk.CTkComboBox(filter_frame, values=days, width=150, state="readonly",
@@ -351,7 +329,6 @@ class ManagerDashboard:
         day_filter.set(current_day)
         day_filter.pack(side="left")
 
-        # Tablo Başlıkları
         head_frame = ctk.CTkFrame(self.coverage_tab, fg_color="transparent")
         head_frame.pack(fill="x", padx=25)
 
@@ -368,7 +345,6 @@ class ManagerDashboard:
         def refresh_list(selected_day):
             for widget in rc.winfo_children(): widget.destroy()
 
-            # Manager ve Boss haricindeki tüm çalışanları çekiyoruz
             self.app.db_manager.cursor.execute(
                 "SELECT username, role, off_day FROM users WHERE role NOT IN ('Boss', 'Manager')"
             )
@@ -390,9 +366,8 @@ class ManagerDashboard:
                 role_count = self.app.hr_service.get_role_count(srole)
 
                 if role_count <= 1:
-                    # Departmanda tek kişi varsa mecburen her gün çalışıyor sayılır
                     status_text = "PRESENT (ONLY) ✅"
-                    status_color = "#f39c12"  # Turuncu
+                    status_color = "#f39c12"
                 elif soff_day == selected_day:
                     status_text = "ABSENT ❌"
                     status_color = "#e74c3c"
@@ -402,7 +377,6 @@ class ManagerDashboard:
                 ctk.CTkLabel(row, text=status_text, text_color=status_color, font=("Arial", 11, "bold")).pack(
                     side="right", padx=15)
 
-        # İlk açılışta bugünün listesini yükle
         refresh_list(day_filter.get())
 
     def open_salary_history(self):

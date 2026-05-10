@@ -1,14 +1,12 @@
 import datetime
 from models.note import Note
 
-
 class NoteService:
     def __init__(self, db_manager):
         self.db = db_manager
         self._ensure_table()
 
     def _ensure_table(self):
-        """Automatically creates the notes table if it doesn't exist (Self-healing logic)"""
         self.db.cursor.execute("""
                                CREATE TABLE IF NOT EXISTS notes
                                (
@@ -32,7 +30,6 @@ class NoteService:
         self.db.conn.commit()
 
     def add_note(self, sender_name, sender_role, target_role, content):
-        """Adds a new message/note to the corporate communication board"""
         current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
         query = "INSERT INTO notes (sender_name, sender_role, target_role, content, date) VALUES (?, ?, ?, ?, ?)"
 
@@ -40,17 +37,10 @@ class NoteService:
         self.db.conn.commit()
 
     def get_notes_for_user(self, user_role):
-        """
-        Retrieves notes based on authority:
-        - Managers and Bosses see all notes.
-        - Staff see notes targeted at their specific role.
-        """
-        # CRITICAL: Updated role names to match English DB schema
         if user_role in ['Manager', 'Boss']:
             self.db.cursor.execute("SELECT * FROM notes ORDER BY id DESC")
         else:
             self.db.cursor.execute("SELECT * FROM notes WHERE target_role=? ORDER BY id DESC", (user_role,))
 
         rows = self.db.cursor.fetchall()
-        # Mapping raw SQL rows to Note objects (Lesson Topic: List Comprehension)
         return [Note(r[0], r[1], r[2], r[3], r[4], r[5]) for r in rows]

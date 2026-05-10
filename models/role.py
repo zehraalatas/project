@@ -1,5 +1,4 @@
 class Role:
-    # Sabit değerler
     BOSS = "Boss"
     MANAGER = "Manager"
     WAITER = "Waiter"
